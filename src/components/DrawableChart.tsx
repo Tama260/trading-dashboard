@@ -96,6 +96,7 @@ export default function DrawableChart({
   const annotationsRef = useRef<Annotation[]>(annotations);
 
   const [tool, setTool] = useState<Tool>("pointer");
+  const toolRef = useRef<Tool>("pointer");
   const [shapes, setShapes] = useState<Shape[]>([]);
   const shapesRef = useRef<Shape[]>([]);
   const drawingRef = useRef<Shape | null>(null);
@@ -108,6 +109,10 @@ export default function DrawableChart({
   useEffect(() => {
     shapesRef.current = shapes;
   }, [shapes]);
+
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   useEffect(() => {
     annotationsRef.current = annotations;
@@ -373,56 +378,79 @@ export default function DrawableChart({
     redraw();
   }, [shapes, annotations, redraw]);
 
-  function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (tool === "pointer") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    const point = pixelToData(pixel);
-    if (!point) return;
+  // PENTING: handler ini dipasang manual lewat addEventListener() native,
+  // BUKAN lewat prop onMouseDown/onMouseMove React. Ini untuk menghindari
+  // kemungkinan event mouse "dicegat" duluan oleh listener lain (misalnya
+  // dari library chart) sebelum sampai ke sistem synthetic event React.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const id = `${Date.now()}`;
-    if (tool === "line") {
-      drawingRef.current = { id, type: "line", points: [point, point] };
-    } else if (tool === "rect") {
-      drawingRef.current = { id, type: "rect", points: [point, point] };
-    } else if (tool === "freehand") {
-      drawingRef.current = { id, type: "freehand", points: [point] };
+    function getPixel(e: MouseEvent): PixelPoint {
+      const rect = canvas!.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
-    redraw();
-  }
 
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    const point = pixelToData(pixel);
+    function onDown(e: MouseEvent) {
+      if (toolRef.current === "pointer") return;
+      const point = pixelToData(getPixel(e));
+      if (!point) return;
 
-    // DEBUG SEMENTARA — supaya kita bisa lihat persis kenapa gambar gagal,
-    // tanpa perlu buka DevTools Console. Akan dihapus setelah bug ketemu.
-    setDebugInfo(
-      `tool=${tool} | pixel=(${pixel.x.toFixed(0)},${pixel.y.toFixed(
-        0
-      )}) | canvas=${canvasRef.current?.width}x${canvasRef.current?.height} | ` +
-        `data=${point ? `t${point.time} p${point.price.toFixed(2)}` : "NULL"} | ` +
-        `drawing=${drawingRef.current ? "aktif" : "kosong"} | shapes=${shapesRef.current.length}`
-    );
-
-    if (tool === "pointer" || !drawingRef.current || !point) return;
-
-    const current = drawingRef.current;
-    if (current.type === "freehand") {
-      current.points.push(point);
-    } else {
-      current.points[1] = point;
+      const id = `${Date.now()}`;
+      const tool = toolRef.current;
+      if (tool === "line") {
+        drawingRef.current = { id, type: "line", points: [point, point] };
+      } else if (tool === "rect") {
+        drawingRef.current = { id, type: "rect", points: [point, point] };
+      } else if (tool === "freehand") {
+        drawingRef.current = { id, type: "freehand", points: [point] };
+      }
+      redraw();
     }
-    redraw();
-  }
 
-  function handleMouseUp() {
-    if (tool === "pointer" || !drawingRef.current) return;
-    const finished = drawingRef.current;
-    drawingRef.current = null;
-    setShapes((prev) => [...prev, finished]);
-  }
+    function onMove(e: MouseEvent) {
+      const pixel = getPixel(e);
+      const point = pixelToData(pixel);
+
+      // DEBUG SEMENTARA — akan dihapus setelah bug ketemu
+      setDebugInfo(
+        `tool=${toolRef.current} | pixel=(${pixel.x.toFixed(
+          0
+        )},${pixel.y.toFixed(0)}) | canvas=${canvas!.width}x${canvas!.height} | ` +
+          `data=${point ? `t${point.time} p${point.price.toFixed(2)}` : "NULL"} | ` +
+          `drawing=${drawingRef.current ? "aktif" : "kosong"} | shapes=${shapesRef.current.length}`
+      );
+
+      if (toolRef.current === "pointer" || !drawingRef.current || !point) return;
+
+      const current = drawingRef.current;
+      if (current.type === "freehand") {
+        current.points.push(point);
+      } else {
+        current.points[1] = point;
+      }
+      redraw();
+    }
+
+    function onUp() {
+      if (toolRef.current === "pointer" || !drawingRef.current) return;
+      const finished = drawingRef.current;
+      drawingRef.current = null;
+      setShapes((prev) => [...prev, finished]);
+    }
+
+    canvas.addEventListener("mousedown", onDown);
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseup", onUp);
+    canvas.addEventListener("mouseleave", onUp);
+
+    return () => {
+      canvas.removeEventListener("mousedown", onDown);
+      canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("mouseup", onUp);
+      canvas.removeEventListener("mouseleave", onUp);
+    };
+  }, [pixelToData, redraw]);
 
   function handleClear() {
     setShapes([]);
@@ -472,10 +500,6 @@ export default function DrawableChart({
           ref={canvasRef}
           className="absolute inset-0"
           style={{ pointerEvents: tool === "pointer" ? "none" : "auto" }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
         />
         {status === "loading" && (
           <div className="absolute inset-0 flex items-center justify-center text-neutral-500 text-sm bg-neutral-900/60 pointer-events-none">
