@@ -130,28 +130,47 @@ export default function TradeSetupPanel({
       ]
     : [];
 
-  // Label struktur (HH/HL/LH/LL) — BOS/CHoCH ditandai dengan warna berbeda
-  // supaya langsung kelihatan mana breakout biasa vs sinyal pembalikan
-  const structureAnnotations: Annotation[] = (structureData?.structure ?? []).map(
-    (s) => ({
-      type: "label",
-      time: s.time,
-      price: s.price,
-      text: s.event ? `${s.tag} ${s.event}` : s.tag,
-      color: s.event === "CHoCH" ? "#facc15" : s.event === "BOS" ? "#a855f7" : "#737373",
-    })
-  );
+  // Batasi label structure ke 8 pivot paling baru — struktur lama biasanya
+  // sudah tidak relevan secara praktis dan bikin chart penuh sesak
+  const recentStructure = (structureData?.structure ?? []).slice(-8);
+
+  const structureAnnotations: Annotation[] = recentStructure.map((s) => ({
+    type: "label",
+    time: s.time,
+    price: s.price,
+    text: s.event ? `${s.tag} ${s.event}` : s.tag,
+    color:
+      s.event === "CHoCH"
+        ? "#facc15"
+        : s.event === "BOS"
+        ? "#a855f7"
+        : "#737373",
+  }));
+
+  // Terlalu banyak liquidity pool bikin chart penuh garis. Batasi hanya
+  // yang PALING DEKAT dengan harga saat ini — itu yang paling relevan
+  // secara praktis (liquidity jauh dari harga kurang actionable).
+  const currentPrice = data?.levels
+    ? (data.levels.resistance + data.levels.support) / 2
+    : null;
+
+  const nearestLiquidity = currentPrice
+    ? [...(structureData?.liquidity ?? [])]
+        .sort(
+          (a, b) =>
+            Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice)
+        )
+        .slice(0, 3)
+    : (structureData?.liquidity ?? []).slice(0, 3);
 
   // Liquidity pool digambar sebagai garis putus-putus ungu muda, beda warna
   // dari level resistance/support supaya tidak tertukar
-  const liquidityAnnotations: Annotation[] = (structureData?.liquidity ?? []).map(
-    (l) => ({
-      type: "hline",
-      price: l.price,
-      label: `${l.type === "buy-side" ? "EQH" : "EQL"} (${l.touches}x)`,
-      color: "#c084fc",
-    })
-  );
+  const liquidityAnnotations: Annotation[] = nearestLiquidity.map((l) => ({
+    type: "hline",
+    price: l.price,
+    label: `${l.type === "buy-side" ? "EQH" : "EQL"} (${l.touches}x)`,
+    color: "#c084fc",
+  }));
 
   const annotations = [
     ...setupAnnotations,

@@ -103,6 +103,7 @@ export default function DrawableChart({
     "loading"
   );
   const [errorMsg, setErrorMsg] = useState("");
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -391,11 +392,21 @@ export default function DrawableChart({
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (tool === "pointer" || !drawingRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const point = pixelToData(pixel);
-    if (!point) return;
+
+    // DEBUG SEMENTARA — supaya kita bisa lihat persis kenapa gambar gagal,
+    // tanpa perlu buka DevTools Console. Akan dihapus setelah bug ketemu.
+    setDebugInfo(
+      `tool=${tool} | pixel=(${pixel.x.toFixed(0)},${pixel.y.toFixed(
+        0
+      )}) | canvas=${canvasRef.current?.width}x${canvasRef.current?.height} | ` +
+        `data=${point ? `t${point.time} p${point.price.toFixed(2)}` : "NULL"} | ` +
+        `drawing=${drawingRef.current ? "aktif" : "kosong"} | shapes=${shapesRef.current.length}`
+    );
+
+    if (tool === "pointer" || !drawingRef.current || !point) return;
 
     const current = drawingRef.current;
     if (current.type === "freehand") {
@@ -451,6 +462,11 @@ export default function DrawableChart({
       </div>
 
       <div className="relative w-full h-[500px]">
+        {tool !== "pointer" && (
+          <div className="absolute top-0 left-0 right-0 z-10 text-[10px] font-mono bg-black/80 text-lime-400 px-2 py-1 pointer-events-none break-all">
+            DEBUG: {debugInfo || "gerakkan mouse di atas chart..."}
+          </div>
+        )}
         <div ref={chartContainerRef} className="absolute inset-0" />
         <canvas
           ref={canvasRef}
