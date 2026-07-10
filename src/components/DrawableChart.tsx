@@ -199,6 +199,10 @@ export default function DrawableChart({
     // terhapus saat "Hapus Semua" ditekan.
     const series = seriesRef.current;
     if (series) {
+      // PASS 1: gambar semua GARIS dulu (posisinya harus presisi di harga
+      // aslinya, tidak boleh digeser)
+      const hlineLabels: { y: number; text: string; color: string }[] = [];
+
       for (const ann of annotationsRef.current) {
         if (ann.type === "hline") {
           const y = series.priceToCoordinate(ann.price);
@@ -212,16 +216,15 @@ export default function DrawableChart({
           ctx.moveTo(0, y);
           ctx.lineTo(canvas.width, y);
           ctx.stroke();
-
-          ctx.setLineDash([]);
-          ctx.fillStyle = ann.color;
-          ctx.font = "11px sans-serif";
-          ctx.fillText(
-            `${ann.label} ${ann.price.toFixed(2)}`,
-            8,
-            y - 4
-          );
           ctx.restore();
+
+          // Simpan dulu, JANGAN gambar teksnya sekarang — kita atur
+          // posisinya di PASS 2 supaya tidak saling tumpang tindih
+          hlineLabels.push({
+            y,
+            text: `${ann.label} ${ann.price.toFixed(2)}`,
+            color: ann.color,
+          });
         } else if (ann.type === "zone") {
           const yLow = series.priceToCoordinate(ann.priceLow);
           const yHigh = series.priceToCoordinate(ann.priceHigh);
@@ -258,6 +261,27 @@ export default function DrawableChart({
           ctx.textAlign = "left";
           ctx.restore();
         }
+      }
+
+      // PASS 2: sekarang gambar teks label untuk semua garis hline,
+      // diurutkan dari atas ke bawah. Kalau jaraknya kurang dari 12px dari
+      // label sebelumnya, geser sedikit ke bawah supaya tidak tumpang tindih.
+      hlineLabels.sort((a, b) => a.y - b.y);
+      let lastLabelY = -Infinity;
+      const minGap = 12;
+
+      for (const item of hlineLabels) {
+        let labelY = item.y - 4;
+        if (labelY - lastLabelY < minGap) {
+          labelY = lastLabelY + minGap;
+        }
+        lastLabelY = labelY;
+
+        ctx.save();
+        ctx.fillStyle = item.color;
+        ctx.font = "11px sans-serif";
+        ctx.fillText(item.text, 8, labelY);
+        ctx.restore();
       }
     }
   }, [dataToPixel]);
