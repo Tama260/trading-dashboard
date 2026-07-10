@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LivePriceProps = {
-  symbol: string; // contoh: "btcusdt" (huruf kecil, format Binance)
+  symbol: string; // contoh: "btcusdt"
 };
 
 type TickerData = {
@@ -13,39 +13,59 @@ type TickerData = {
   low: string;
 };
 
-// Komponen ini "hidup sendiri": begitu di-render, dia langsung buka koneksi
-// WebSocket ke Binance dan update angka realtime tanpa refresh halaman.
+const POLL_INTERVAL_MS = 3000;
+
+// Komponen ini TIDAK lagi konek langsung ke Binance dari browser.
+// Ia bertanya ke "/api/prices" (server milik kita sendiri di Next.js),
+// dan server itu yang meneruskan ke Binance. Ini menghindari blokir ISP
+// yang berlaku di level browser/perangkat pengguna.
 export default function LivePrice({ symbol }: LivePriceProps) {
   const [data, setData] = useState<TickerData | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">(
     "connecting"
   );
+  const [errorReason, setErrorReason] = useState<string>("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Binance punya stream publik gratis, tanpa API key, tanpa login.
-    // Format: wss://stream.binance.com:9443/ws/<symbol>@ticker
-    const streamName = `${symbol.toLowerCase()}@ticker`;
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${streamName}`);
+    let cancelled = false;
 
-    ws.onopen = () => setStatus("live");
+    async function fetchPrice() {
+      try {
+        const res = await fetch(`/api/prices?symbol=${symbol}`, {
+          cache: "no-store",
+        });
+        const json = await res.json();
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      // "c" = current price, "P" = percent change 24h, "h"/"l" = high/low 24h
-      // (nama field ini ditentukan oleh Binance, bisa dicek di dokumentasi resminya)
-      setData({
-        price: parseFloat(msg.c).toFixed(2),
-        changePercent: parseFloat(msg.P).toFixed(2),
-        high: parseFloat(msg.h).toFixed(2),
-        low: parseFloat(msg.l).toFixed(2),
-      });
+        if (!res.ok) {
+          throw new Error(json.error || "Gagal mengambil data");
+        }
+
+        if (!cancelled) {
+          setData(json);
+          setStatus("live");
+          setErrorReason("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setStatus("error");
+          setErrorReason(
+            err instanceof Error ? err.message : "Terjadi kesalahan"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          timerRef.current = setTimeout(fetchPrice, POLL_INTERVAL_MS);
+        }
+      }
+    }
+
+    fetchPrice();
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
-
-    ws.onerror = () => setStatus("error");
-    ws.onclose = () => setStatus("error");
-
-    // Wajib: tutup koneksi saat komponen di-unmount, supaya tidak bocor memori
-    return () => ws.close();
   }, [symbol]);
 
   const isUp = data ? parseFloat(data.changePercent) >= 0 : true;
@@ -69,7 +89,7 @@ export default function LivePrice({ symbol }: LivePriceProps) {
             ? "● LIVE"
             : status === "connecting"
             ? "Connecting..."
-            : "Disconnected"}
+            : "Error"}
         </span>
       </div>
 
@@ -97,7 +117,11 @@ export default function LivePrice({ symbol }: LivePriceProps) {
           </div>
         </>
       ) : (
-        <div className="text-neutral-500 text-sm">Menunggu data...</div>
+        <div className="text-neutral-500 text-sm">
+          {status === "error" && errorReason
+            ? errorReason
+            : "Menunggu data..."}
+        </div>
       )}
     </div>
   );

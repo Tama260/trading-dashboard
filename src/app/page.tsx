@@ -1,5 +1,6 @@
 import LivePrice from "@/components/LivePrice";
-import TradingViewChart from "@/components/TradingViewChart";
+import MarketIntel from "@/components/MarketIntel";
+import TradeSetupPanel from "@/components/TradeSetupPanel";
 
 export default function Home() {
   return (
@@ -10,8 +11,7 @@ export default function Home() {
             Trading Intelligence Dashboard
           </h1>
           <p className="text-neutral-400 text-sm mt-1">
-            Fase 1 — live price & chart. Alat bantu analisis rule-based,
-            bukan nasihat keuangan.
+            Alat bantu analisis rule-based, bukan nasihat keuangan.
           </p>
         </header>
 
@@ -21,8 +21,12 @@ export default function Home() {
           <LivePrice symbol="solusdt" />
         </section>
 
+        <section className="mb-6">
+          <MarketIntel symbol="BTCUSDT" />
+        </section>
+
         <section>
-          <TradingViewChart symbol="BINANCE:SOLUSDT" />
+          <TradeSetupPanel symbol="SOLUSDT" interval="1h" />
         </section>
 
         <footer className="mt-8 text-xs text-neutral-600 border-t border-neutral-900 pt-4">
