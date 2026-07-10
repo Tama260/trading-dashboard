@@ -28,7 +28,8 @@ export type Annotation =
       priceHigh: number;
       label: string;
       color: string;
-    };
+    }
+  | { type: "label"; time: number; price: number; text: string; color: string };
 
 // Titik dalam RUANG DATA (harga & waktu), bukan pixel layar. Ini kuncinya:
 // karena disimpan sebagai harga & waktu, gambar akan otomatis "ikut"
@@ -232,6 +233,24 @@ export default function DrawableChart({
           ctx.font = "11px sans-serif";
           ctx.fillText(ann.label, 8, Math.min(yLow, yHigh) + 12);
           ctx.restore();
+        } else if (ann.type === "label") {
+          const point = dataToPixel({
+            time: ann.time as UTCTimestamp,
+            price: ann.price,
+          });
+          if (!point) continue;
+
+          ctx.save();
+          ctx.fillStyle = ann.color;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.font = "bold 10px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(ann.text, point.x, point.y - 8);
+          ctx.textAlign = "left";
+          ctx.restore();
         }
       }
     }
@@ -319,17 +338,32 @@ export default function DrawableChart({
   }, [symbol, interval]);
 
   useEffect(() => {
+    const container = chartContainerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+
     function resizeCanvas() {
-      const container = chartContainerRef.current;
-      const canvas = canvasRef.current;
       if (!container || !canvas) return;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      const { clientWidth, clientHeight } = container;
+      // Kalau ukurannya masih 0 (container belum selesai di-layout oleh
+      // browser), jangan set dulu — tunggu observer memanggil ulang saat
+      // ukuran sungguhan sudah tersedia.
+      if (clientWidth === 0 || clientHeight === 0) return;
+      canvas.width = clientWidth;
+      canvas.height = clientHeight;
       redraw();
     }
+
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
+
+    // ResizeObserver mendeteksi PERUBAHAN UKURAN CONTAINER kapan saja
+    // terjadi (termasuk dari 0 ke ukuran asli saat pertama kali di-layout),
+    // bukan cuma saat window di-resize manual. Ini yang menyelesaikan bug:
+    // sebelumnya canvas bisa "terjebak" di ukuran 0 selamanya.
+    const observer = new ResizeObserver(resizeCanvas);
+    observer.observe(container);
+
+    return () => observer.disconnect();
   }, [redraw]);
 
   // Redraw juga setiap shapes atau annotations berubah (misal setelah

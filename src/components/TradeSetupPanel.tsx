@@ -19,6 +19,24 @@ type SetupResult = {
   };
 };
 
+type StructureLabel = {
+  time: number;
+  price: number;
+  tag: "H" | "L" | "HH" | "LH" | "HL" | "LL";
+  event?: "BOS" | "CHoCH";
+};
+
+type LiquidityLevel = {
+  price: number;
+  type: "buy-side" | "sell-side";
+  touches: number;
+};
+
+type StructureResult = {
+  structure: StructureLabel[];
+  liquidity: LiquidityLevel[];
+};
+
 const POLL_INTERVAL_MS = 30000; // level setup tidak perlu se-realtime harga
 
 export default function TradeSetupPanel({
@@ -29,6 +47,9 @@ export default function TradeSetupPanel({
   interval?: string;
 }) {
   const [data, setData] = useState<SetupResult | null>(null);
+  const [structureData, setStructureData] = useState<StructureResult | null>(
+    null
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -37,14 +58,28 @@ export default function TradeSetupPanel({
 
     async function load() {
       try {
-        const res = await fetch(
-          `/api/setup?symbol=${symbol}&interval=${interval}`,
-          { cache: "no-store" }
-        );
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Gagal memuat setup");
+        const [setupRes, structureRes] = await Promise.all([
+          fetch(`/api/setup?symbol=${symbol}&interval=${interval}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/structure?symbol=${symbol}&interval=${interval}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        const setupJson = await setupRes.json();
+        if (!setupRes.ok)
+          throw new Error(setupJson.error || "Gagal memuat setup");
+
+        // Structure bersifat opsional — kalau gagal, jangan gagalkan
+        // seluruh panel, cukup skip anotasi structure-nya saja
+        const structureJson = structureRes.ok
+          ? await structureRes.json()
+          : null;
+
         if (!cancelled) {
-          setData(json);
+          setData(setupJson);
+          setStructureData(structureJson);
           setError("");
         }
       } catch (err) {
@@ -63,7 +98,7 @@ export default function TradeSetupPanel({
     };
   }, [symbol, interval]);
 
-  const annotations: Annotation[] = data
+  const setupAnnotations: Annotation[] = data
     ? [
         {
           type: "hline",
@@ -94,6 +129,35 @@ export default function TradeSetupPanel({
         { type: "hline", price: data.levels.tp2, label: "TP2", color: "#22c55e" },
       ]
     : [];
+
+  // Label struktur (HH/HL/LH/LL) — BOS/CHoCH ditandai dengan warna berbeda
+  // supaya langsung kelihatan mana breakout biasa vs sinyal pembalikan
+  const structureAnnotations: Annotation[] = (structureData?.structure ?? []).map(
+    (s) => ({
+      type: "label",
+      time: s.time,
+      price: s.price,
+      text: s.event ? `${s.tag} ${s.event}` : s.tag,
+      color: s.event === "CHoCH" ? "#facc15" : s.event === "BOS" ? "#a855f7" : "#737373",
+    })
+  );
+
+  // Liquidity pool digambar sebagai garis putus-putus ungu muda, beda warna
+  // dari level resistance/support supaya tidak tertukar
+  const liquidityAnnotations: Annotation[] = (structureData?.liquidity ?? []).map(
+    (l) => ({
+      type: "hline",
+      price: l.price,
+      label: `${l.type === "buy-side" ? "EQH" : "EQL"} (${l.touches}x)`,
+      color: "#c084fc",
+    })
+  );
+
+  const annotations = [
+    ...setupAnnotations,
+    ...structureAnnotations,
+    ...liquidityAnnotations,
+  ];
 
   const biasColor =
     data?.bias === "Bullish"
@@ -146,7 +210,7 @@ export default function TradeSetupPanel({
               ))}
             </ul>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4">
               <LevelBox
                 label="Entry Zone"
                 value={`${data.levels.entryLow.toFixed(
@@ -170,6 +234,36 @@ export default function TradeSetupPanel({
                 color="text-green-400"
               />
             </div>
+
+            {structureData && (
+              <div className="flex flex-wrap gap-4 text-xs text-neutral-500 border-t border-neutral-800 pt-3">
+                <span>
+                  Liquidity Pool:{" "}
+                  <span className="text-purple-400">
+                    {structureData.liquidity.length} terdeteksi
+                  </span>
+                </span>
+                {(() => {
+                  const lastEvent = [...structureData.structure]
+                    .reverse()
+                    .find((s) => s.event);
+                  return lastEvent ? (
+                    <span>
+                      Structure Event Terakhir:{" "}
+                      <span
+                        className={
+                          lastEvent.event === "CHoCH"
+                            ? "text-yellow-400"
+                            : "text-purple-400"
+                        }
+                      >
+                        {lastEvent.tag} {lastEvent.event}
+                      </span>
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+            )}
           </>
         )}
       </div>
