@@ -531,6 +531,11 @@ export default function DrawableChart({
           className="absolute inset-0"
           style={{
             pointerEvents: tool === "pointer" ? "none" : "auto",
+            // z-index eksplisit WAJIB lebih tinggi dari z-index:2 yang
+            // dipakai lightweight-charts untuk canvas internalnya sendiri —
+            // kalau tidak, klik kita akan "ketangkap" duluan oleh chart,
+            // meski secara DOM canvas kita ditulis belakangan.
+            zIndex: 10,
             cursor:
               tool === "pointer"
                 ? "default"
