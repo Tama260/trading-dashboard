@@ -51,6 +51,9 @@ export default function TradeSetupPanel({
     null
   );
   const [error, setError] = useState("");
+  const [showSetup, setShowSetup] = useState(true);
+  const [showStructure, setShowStructure] = useState(false);
+  const [showLiquidity, setShowLiquidity] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,9 +176,9 @@ export default function TradeSetupPanel({
   }));
 
   const annotations = [
-    ...setupAnnotations,
-    ...structureAnnotations,
-    ...liquidityAnnotations,
+    ...(showSetup ? setupAnnotations : []),
+    ...(showStructure ? structureAnnotations : []),
+    ...(showLiquidity ? liquidityAnnotations : []),
   ];
 
   const biasColor =
@@ -198,6 +201,27 @@ export default function TradeSetupPanel({
               <span className="text-neutral-300">{data.confidence}%</span>
             </span>
           )}
+        </div>
+
+        <div className="flex flex-wrap gap-4 mb-4 text-xs">
+          <LayerToggle
+            label="Setup Levels"
+            checked={showSetup}
+            onChange={setShowSetup}
+            color="#38bdf8"
+          />
+          <LayerToggle
+            label="Structure (HH/HL/LH/LL)"
+            checked={showStructure}
+            onChange={setShowStructure}
+            color="#a855f7"
+          />
+          <LayerToggle
+            label="Liquidity Pool"
+            checked={showLiquidity}
+            onChange={setShowLiquidity}
+            color="#c084fc"
+          />
         </div>
 
         {error && <div className="text-sm text-red-400">{error}</div>}
@@ -289,6 +313,30 @@ export default function TradeSetupPanel({
 
       <DrawableChart symbol={symbol} interval={interval} annotations={annotations} />
     </div>
+  );
+}
+
+function LayerToggle({
+  label,
+  checked,
+  onChange,
+  color,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  color: string;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 cursor-pointer select-none text-neutral-400 hover:text-neutral-200">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-sky-500"
+      />
+      <span style={{ color: checked ? color : undefined }}>{label}</span>
+    </label>
   );
 }
 
