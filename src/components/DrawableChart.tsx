@@ -238,10 +238,16 @@ export default function DrawableChart({
             canvas.width,
             Math.abs(yLow - yHigh)
           );
-          ctx.fillStyle = ann.color;
-          ctx.font = "11px sans-serif";
-          ctx.fillText(ann.label, 8, Math.min(yLow, yHigh) + 12);
           ctx.restore();
+
+          // Sama seperti hline — label-nya JANGAN digambar sekarang,
+          // masukkan ke antrian PASS 2 supaya ikut diatur biar tidak
+          // tumpang tindih dengan label garis lain di dekatnya
+          hlineLabels.push({
+            y: Math.min(yLow, yHigh) + 8,
+            text: ann.label,
+            color: ann.color,
+          });
         } else if (ann.type === "label") {
           const point = dataToPixel({
             time: ann.time as UTCTimestamp,
