@@ -1,6 +1,5 @@
 import LivePrice from "@/components/LivePrice";
-import MarketIntel from "@/components/MarketIntel";
-import TradeSetupPanel from "@/components/TradeSetupPanel";
+import AnalysisSection from "@/components/AnalysisSection";
 import PositionTracker from "@/components/PositionTracker";
 
 export default function Home() {
@@ -22,13 +21,7 @@ export default function Home() {
           <LivePrice symbol="solusdt" />
         </section>
 
-        <section className="mb-6">
-          <MarketIntel symbol="BTCUSDT" />
-        </section>
-
-        <section className="mb-6">
-          <TradeSetupPanel symbol="SOLUSDT" interval="1h" />
-        </section>
+        <AnalysisSection />
 
         <section>
           <PositionTracker />

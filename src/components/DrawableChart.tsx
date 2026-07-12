@@ -455,12 +455,12 @@ export default function DrawableChart({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    function getPixel(e: MouseEvent): PixelPoint {
+    function getPixel(e: PointerEvent): PixelPoint {
       const rect = canvas!.getBoundingClientRect();
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
 
-    function onDown(e: MouseEvent) {
+    function onDown(e: PointerEvent) {
       if (toolRef.current === "pointer") return;
       const point = pixelToData(getPixel(e));
       if (!point) return;
@@ -477,7 +477,7 @@ export default function DrawableChart({
       redraw();
     }
 
-    function onMove(e: MouseEvent) {
+    function onMove(e: PointerEvent) {
       const pixel = getPixel(e);
       const point = pixelToData(pixel);
 
@@ -499,16 +499,18 @@ export default function DrawableChart({
       setShapes((prev) => [...prev, finished]);
     }
 
-    canvas.addEventListener("mousedown", onDown);
-    canvas.addEventListener("mousemove", onMove);
-    canvas.addEventListener("mouseup", onUp);
-    canvas.addEventListener("mouseleave", onUp);
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointerleave", onUp);
+    canvas.addEventListener("pointercancel", onUp);
 
     return () => {
-      canvas.removeEventListener("mousedown", onDown);
-      canvas.removeEventListener("mousemove", onMove);
-      canvas.removeEventListener("mouseup", onUp);
-      canvas.removeEventListener("mouseleave", onUp);
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointerleave", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
     };
   }, [pixelToData, redraw]);
 
@@ -556,6 +558,9 @@ export default function DrawableChart({
           className="absolute inset-0"
           style={{
             pointerEvents: tool === "pointer" ? "none" : "auto",
+            // Wajib untuk touch/HP: tanpa ini, browser akan scroll halaman
+            // saat jari digeser di canvas, bukan menggambar
+            touchAction: tool === "pointer" ? "auto" : "none",
             // z-index eksplisit WAJIB lebih tinggi dari z-index:2 yang
             // dipakai lightweight-charts untuk canvas internalnya sendiri —
             // kalau tidak, klik kita akan "ketangkap" duluan oleh chart,
