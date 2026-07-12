@@ -1,5 +1,4 @@
-import LivePrice from "@/components/LivePrice";
-import AnalysisSection from "@/components/AnalysisSection";
+import Watchlist from "@/components/Watchlist";
 import PositionTracker from "@/components/PositionTracker";
 
 export default function Home() {
@@ -15,13 +14,7 @@ export default function Home() {
           </p>
         </header>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <LivePrice symbol="btcusdt" />
-          <LivePrice symbol="ethusdt" />
-          <LivePrice symbol="solusdt" />
-        </section>
-
-        <AnalysisSection />
+        <Watchlist />
 
         <section>
           <PositionTracker />

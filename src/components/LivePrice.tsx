@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type LivePriceProps = {
   symbol: string; // contoh: "btcusdt"
+  onRemove?: () => void; // kalau diisi, muncul tombol hapus kecil di kartu
 };
 
 type TickerData = {
@@ -19,7 +20,7 @@ const POLL_INTERVAL_MS = 3000;
 // Ia bertanya ke "/api/prices" (server milik kita sendiri di Next.js),
 // dan server itu yang meneruskan ke Binance. Ini menghindari blokir ISP
 // yang berlaku di level browser/perangkat pengguna.
-export default function LivePrice({ symbol }: LivePriceProps) {
+export default function LivePrice({ symbol, onRemove }: LivePriceProps) {
   const [data, setData] = useState<TickerData | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">(
     "connecting"
@@ -76,21 +77,32 @@ export default function LivePrice({ symbol }: LivePriceProps) {
         <span className="text-sm text-neutral-400 uppercase tracking-wide">
           {symbol.replace("usdt", "").toUpperCase()} / USDT
         </span>
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full ${
-            status === "live"
-              ? "bg-green-900 text-green-400"
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full ${
+              status === "live"
+                ? "bg-green-900 text-green-400"
+                : status === "connecting"
+                ? "bg-yellow-900 text-yellow-400"
+                : "bg-red-900 text-red-400"
+            }`}
+          >
+            {status === "live"
+              ? "● LIVE"
               : status === "connecting"
-              ? "bg-yellow-900 text-yellow-400"
-              : "bg-red-900 text-red-400"
-          }`}
-        >
-          {status === "live"
-            ? "● LIVE"
-            : status === "connecting"
-            ? "Connecting..."
-            : "Error"}
-        </span>
+              ? "Connecting..."
+              : "Error"}
+          </span>
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              title="Hapus dari watchlist"
+              className="text-neutral-600 hover:text-red-400 text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-neutral-800"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {data ? (
