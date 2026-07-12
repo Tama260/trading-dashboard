@@ -1,6 +1,7 @@
 import LivePrice from "@/components/LivePrice";
 import MarketIntel from "@/components/MarketIntel";
 import TradeSetupPanel from "@/components/TradeSetupPanel";
+import PositionTracker from "@/components/PositionTracker";
 
 export default function Home() {
   return (
@@ -25,8 +26,12 @@ export default function Home() {
           <MarketIntel symbol="BTCUSDT" />
         </section>
 
-        <section>
+        <section className="mb-6">
           <TradeSetupPanel symbol="SOLUSDT" interval="1h" />
+        </section>
+
+        <section>
+          <PositionTracker />
         </section>
 
         <footer className="mt-8 text-xs text-neutral-600 border-t border-neutral-900 pt-4">

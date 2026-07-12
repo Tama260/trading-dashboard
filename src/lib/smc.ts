@@ -1,4 +1,5 @@
 import { Pivot } from "./setupDetection";
+import { Kline } from "./binance";
 
 export type StructureTag = "H" | "L" | "HH" | "LH" | "HL" | "LL";
 export type StructureEvent = "BOS" | "CHoCH";
@@ -73,6 +74,182 @@ export function classifyStructure(pivots: Pivot[]): StructureLabel[] {
   return labels;
 }
 
+export type LiquiditySweep = {
+  time: number;
+  price: number;
+  type: "buy-side" | "sell-side";
+  direction: "bullish" | "bearish"; // arah reversal setelah sweep terjadi
+};
+
+// Sweep terjadi kalau candle menembus level liquidity (via wick/high/low)
+// TAPI close-nya kembali ke sisi semula — pola klasik "stop hunt" sebelum
+// harga berbalik arah.
+export function detectLiquiditySweeps(
+  klines: Kline[],
+  liquidityLevels: LiquidityLevel[]
+): LiquiditySweep[] {
+  const sweeps: LiquiditySweep[] = [];
+
+  for (const level of liquidityLevels) {
+    for (const k of klines) {
+      // Sweep cuma valid kalau terjadi SETELAH liquidity pool-nya
+      // benar-benar terbentuk (setelah sentuhan terakhir yang membentuk cluster)
+      if (k.time <= level.lastTime) continue;
+
+      if (level.type === "buy-side" && k.high > level.price && k.close < level.price) {
+        sweeps.push({
+          time: k.time,
+          price: level.price,
+          type: "buy-side",
+          direction: "bearish",
+        });
+        break; // 1 sweep per level cukup, hindari duplikat
+      }
+      if (level.type === "sell-side" && k.low < level.price && k.close > level.price) {
+        sweeps.push({
+          time: k.time,
+          price: level.price,
+          type: "sell-side",
+          direction: "bullish",
+        });
+        break;
+      }
+    }
+  }
+
+  return sweeps;
+}
+
+export type FairValueGap = {
+  startTime: number;
+  endTime: number;
+  displayEndTime: number; // sampai kapan box digambar (saat terisi, atau waktu candle terakhir)
+  top: number;
+  bottom: number;
+  type: "bullish" | "bearish";
+  filled: boolean;
+};
+
+function findFillIndex(
+  klines: Kline[],
+  fromIndex: number,
+  bottom: number,
+  top: number
+): number {
+  for (let i = fromIndex; i < klines.length; i++) {
+    const k = klines[i];
+    // Gap dianggap "terisi" kalau ada candle setelahnya yang masuk lagi ke
+    // rentang harga gap tersebut
+    if (k.low <= top && k.high >= bottom) return i;
+  }
+  return -1;
+}
+
+// FVG: bandingkan candle 1 dan candle 3 (lewati candle 2 di tengah). Kalau
+// keduanya tidak overlap sama sekali, ada "celah" harga yang belum pernah
+// ditransaksikan — ini disebut Fair Value Gap / imbalance.
+export function detectFairValueGaps(klines: Kline[]): FairValueGap[] {
+  const fvgs: FairValueGap[] = [];
+  const lastTime = klines[klines.length - 1]?.time ?? 0;
+
+  for (let i = 2; i < klines.length; i++) {
+    const first = klines[i - 2];
+    const third = klines[i];
+
+    if (third.low > first.high) {
+      const top = third.low;
+      const bottom = first.high;
+      const fillIndex = findFillIndex(klines, i + 1, bottom, top);
+      fvgs.push({
+        startTime: first.time,
+        endTime: third.time,
+        displayEndTime: fillIndex !== -1 ? klines[fillIndex].time : lastTime,
+        top,
+        bottom,
+        type: "bullish",
+        filled: fillIndex !== -1,
+      });
+    }
+
+    if (third.high < first.low) {
+      const top = first.low;
+      const bottom = third.high;
+      const fillIndex = findFillIndex(klines, i + 1, bottom, top);
+      fvgs.push({
+        startTime: first.time,
+        endTime: third.time,
+        displayEndTime: fillIndex !== -1 ? klines[fillIndex].time : lastTime,
+        top,
+        bottom,
+        type: "bearish",
+        filled: fillIndex !== -1,
+      });
+    }
+  }
+
+  return fvgs;
+}
+
+export type OrderBlock = {
+  time: number;
+  endTime: number;
+  high: number;
+  low: number;
+  type: "bullish" | "bearish";
+};
+
+// Order Block: candle terakhir BERLAWANAN warna sebelum muncul candle
+// impulsif kuat (body-nya jauh lebih besar dari rata-rata/ATR) yang
+// menembus high/low candle sebelumnya.
+export function detectOrderBlocks(
+  klines: Kline[],
+  atrValue: number
+): OrderBlock[] {
+  const blocks: OrderBlock[] = [];
+  const lastTime = klines[klines.length - 1]?.time ?? 0;
+
+  for (let i = 1; i < klines.length - 1; i++) {
+    const candle = klines[i];
+    const next = klines[i + 1];
+    const nextBody = Math.abs(next.close - next.open);
+    const isImpulsive = nextBody > atrValue * 0.8;
+
+    const isBearishCandle = candle.close < candle.open;
+    const isBullishCandle = candle.close > candle.open;
+
+    if (
+      isBearishCandle &&
+      next.close > next.open &&
+      isImpulsive &&
+      next.close > candle.high
+    ) {
+      blocks.push({
+        time: candle.time,
+        endTime: lastTime,
+        high: candle.high,
+        low: candle.low,
+        type: "bullish",
+      });
+    }
+
+    if (
+      isBullishCandle &&
+      next.close < next.open &&
+      isImpulsive &&
+      next.close < candle.low
+    ) {
+      blocks.push({
+        time: candle.time,
+        endTime: lastTime,
+        high: candle.high,
+        low: candle.low,
+        type: "bearish",
+      });
+    }
+  }
+
+  return blocks;
+}
 export type LiquidityLevel = {
   price: number;
   type: "buy-side" | "sell-side"; // buy-side = di atas equal high, sell-side = di bawah equal low

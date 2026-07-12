@@ -32,10 +32,51 @@ type LiquidityLevel = {
   touches: number;
 };
 
+type LiquiditySweep = {
+  time: number;
+  price: number;
+  type: "buy-side" | "sell-side";
+  direction: "bullish" | "bearish";
+};
+
+type FairValueGap = {
+  startTime: number;
+  endTime: number;
+  displayEndTime: number;
+  top: number;
+  bottom: number;
+  type: "bullish" | "bearish";
+  filled: boolean;
+};
+
+type OrderBlock = {
+  time: number;
+  endTime: number;
+  high: number;
+  low: number;
+  type: "bullish" | "bearish";
+};
+
 type StructureResult = {
   structure: StructureLabel[];
   liquidity: LiquidityLevel[];
+  sweeps: LiquiditySweep[];
+  fvg: FairValueGap[];
+  orderBlocks: OrderBlock[];
 };
+
+type LevelKey =
+  | "resistance"
+  | "support"
+  | "entryZone"
+  | "sl"
+  | "tp1"
+  | "tp2"
+  | "structure"
+  | "liquidity"
+  | "sweep"
+  | "fvg"
+  | "orderBlock";
 
 const POLL_INTERVAL_MS = 30000; // level setup tidak perlu se-realtime harga
 
@@ -51,9 +92,27 @@ export default function TradeSetupPanel({
     null
   );
   const [error, setError] = useState("");
-  const [showSetup, setShowSetup] = useState(true);
-  const [showStructure, setShowStructure] = useState(false);
-  const [showLiquidity, setShowLiquidity] = useState(false);
+
+  // Kontrol per-garis — default: level actionable (entry/SL/TP) tampil,
+  // resistance/support & structure/liquidity dimatikan biar chart bersih
+  // di awal, tinggal dicentang kalau mau lihat lebih detail
+  const [visible, setVisible] = useState<Record<LevelKey, boolean>>({
+    resistance: false,
+    support: false,
+    entryZone: true,
+    sl: true,
+    tp1: true,
+    tp2: true,
+    structure: false,
+    liquidity: false,
+    sweep: false,
+    fvg: false,
+    orderBlock: false,
+  });
+
+  function toggle(key: LevelKey) {
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -103,33 +162,67 @@ export default function TradeSetupPanel({
 
   const setupAnnotations: Annotation[] = data
     ? [
-        {
-          type: "hline",
-          price: data.levels.resistance,
-          label: "Resistance",
-          color: "#f97316",
-        },
-        {
-          type: "hline",
-          price: data.levels.support,
-          label: "Support",
-          color: "#f97316",
-        },
-        {
-          type: "zone",
-          priceLow: data.levels.entryLow,
-          priceHigh: data.levels.entryHigh,
-          label: "Entry Zone",
-          color: "#38bdf8",
-        },
-        {
-          type: "hline",
-          price: data.levels.stopLoss,
-          label: "SL",
-          color: "#ef4444",
-        },
-        { type: "hline", price: data.levels.tp1, label: "TP1", color: "#22c55e" },
-        { type: "hline", price: data.levels.tp2, label: "TP2", color: "#22c55e" },
+        ...(visible.resistance
+          ? [
+              {
+                type: "hline" as const,
+                price: data.levels.resistance,
+                label: "Resistance",
+                color: "#f97316",
+              },
+            ]
+          : []),
+        ...(visible.support
+          ? [
+              {
+                type: "hline" as const,
+                price: data.levels.support,
+                label: "Support",
+                color: "#f97316",
+              },
+            ]
+          : []),
+        ...(visible.entryZone
+          ? [
+              {
+                type: "zone" as const,
+                priceLow: data.levels.entryLow,
+                priceHigh: data.levels.entryHigh,
+                label: "Entry Zone",
+                color: "#38bdf8",
+              },
+            ]
+          : []),
+        ...(visible.sl
+          ? [
+              {
+                type: "hline" as const,
+                price: data.levels.stopLoss,
+                label: "SL",
+                color: "#ef4444",
+              },
+            ]
+          : []),
+        ...(visible.tp1
+          ? [
+              {
+                type: "hline" as const,
+                price: data.levels.tp1,
+                label: "TP1",
+                color: "#22c55e",
+              },
+            ]
+          : []),
+        ...(visible.tp2
+          ? [
+              {
+                type: "hline" as const,
+                price: data.levels.tp2,
+                label: "TP2",
+                color: "#22c55e",
+              },
+            ]
+          : []),
       ]
     : [];
 
@@ -175,10 +268,56 @@ export default function TradeSetupPanel({
     color: "#c084fc",
   }));
 
+  // Sweep: tandai dengan label kecil di titik sweep-nya. Batasi ke 5
+  // terbaru biar tidak menumpuk kalau riwayatnya panjang.
+  const sweepAnnotations: Annotation[] = (structureData?.sweeps ?? [])
+    .slice(-5)
+    .map((s) => ({
+      type: "label",
+      time: s.time,
+      price: s.price,
+      text: "SWEEP",
+      color: s.direction === "bullish" ? "#22c55e" : "#ef4444",
+    }));
+
+  // FVG: kotak dibatasi waktu (bukan selebar layar). Yang belum terisi
+  // (filled: false) lebih relevan, jadi diprioritaskan; kotak yang sudah
+  // terisi digambar putus-putus supaya kelihatan "sudah tidak aktif"
+  const fvgAnnotations: Annotation[] = (structureData?.fvg ?? [])
+    .slice(-6)
+    .map((f) => ({
+      type: "box",
+      time1: f.startTime,
+      time2: f.displayEndTime,
+      priceLow: f.bottom,
+      priceHigh: f.top,
+      label: `FVG${f.filled ? " (filled)" : ""}`,
+      color: f.type === "bullish" ? "#22c55e" : "#ef4444",
+      dashed: f.filled,
+    }));
+
+  // Order Block: kotak dari candle OB sampai waktu terakhir data
+  const orderBlockAnnotations: Annotation[] = (
+    structureData?.orderBlocks ?? []
+  )
+    .slice(-4)
+    .map((ob) => ({
+      type: "box",
+      time1: ob.time,
+      time2: ob.endTime,
+      priceLow: ob.low,
+      priceHigh: ob.high,
+      label: `OB ${ob.type === "bullish" ? "Bullish" : "Bearish"}`,
+      color: ob.type === "bullish" ? "#38bdf8" : "#f97316",
+    }));
+
   const annotations = [
-    ...(showSetup ? setupAnnotations : []),
-    ...(showStructure ? structureAnnotations : []),
-    ...(showLiquidity ? liquidityAnnotations : []),
+    ...setupAnnotations,
+    ...(visible.structure ? structureAnnotations : []),
+    ...(visible.liquidity ? liquidityAnnotations : []),
+    ...(visible.sweep ? sweepAnnotations : []),
+    ...(visible.fvg ? fvgAnnotations : []),
+    ...(visible.orderBlock ? orderBlockAnnotations : []),
   ];
 
   const biasColor =
@@ -203,24 +342,73 @@ export default function TradeSetupPanel({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-4 text-xs">
-          <LayerToggle
-            label="Setup Levels"
-            checked={showSetup}
-            onChange={setShowSetup}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <LevelChip
+            label="Resistance"
+            color="#f97316"
+            active={visible.resistance}
+            onClick={() => toggle("resistance")}
+          />
+          <LevelChip
+            label="Support"
+            color="#f97316"
+            active={visible.support}
+            onClick={() => toggle("support")}
+          />
+          <LevelChip
+            label="Entry Zone"
             color="#38bdf8"
+            active={visible.entryZone}
+            onClick={() => toggle("entryZone")}
           />
-          <LayerToggle
+          <LevelChip
+            label="Stop Loss"
+            color="#ef4444"
+            active={visible.sl}
+            onClick={() => toggle("sl")}
+          />
+          <LevelChip
+            label="TP1"
+            color="#22c55e"
+            active={visible.tp1}
+            onClick={() => toggle("tp1")}
+          />
+          <LevelChip
+            label="TP2"
+            color="#22c55e"
+            active={visible.tp2}
+            onClick={() => toggle("tp2")}
+          />
+          <span className="w-px bg-neutral-800 mx-1" />
+          <LevelChip
             label="Structure (HH/HL/LH/LL)"
-            checked={showStructure}
-            onChange={setShowStructure}
             color="#a855f7"
+            active={visible.structure}
+            onClick={() => toggle("structure")}
           />
-          <LayerToggle
+          <LevelChip
             label="Liquidity Pool"
-            checked={showLiquidity}
-            onChange={setShowLiquidity}
             color="#c084fc"
+            active={visible.liquidity}
+            onClick={() => toggle("liquidity")}
+          />
+          <LevelChip
+            label="Liquidity Sweep"
+            color="#facc15"
+            active={visible.sweep}
+            onClick={() => toggle("sweep")}
+          />
+          <LevelChip
+            label="Fair Value Gap"
+            color="#22c55e"
+            active={visible.fvg}
+            onClick={() => toggle("fvg")}
+          />
+          <LevelChip
+            label="Order Block"
+            color="#38bdf8"
+            active={visible.orderBlock}
+            onClick={() => toggle("orderBlock")}
           />
         </div>
 
@@ -316,27 +504,41 @@ export default function TradeSetupPanel({
   );
 }
 
-function LayerToggle({
+function LevelChip({
   label,
-  checked,
-  onChange,
   color,
+  active,
+  onClick,
 }: {
   label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
   color: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <label className="flex items-center gap-1.5 cursor-pointer select-none text-neutral-400 hover:text-neutral-200">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-sky-500"
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors"
+      style={
+        active
+          ? {
+              backgroundColor: `${color}1a`,
+              borderColor: `${color}66`,
+              color,
+            }
+          : {
+              backgroundColor: "transparent",
+              borderColor: "#404040",
+              color: "#737373",
+            }
+      }
+    >
+      <span
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{ backgroundColor: active ? color : "#525252" }}
       />
-      <span style={{ color: checked ? color : undefined }}>{label}</span>
-    </label>
+      {label}
+    </button>
   );
 }
 

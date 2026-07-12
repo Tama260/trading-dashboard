@@ -29,7 +29,17 @@ export type Annotation =
       label: string;
       color: string;
     }
-  | { type: "label"; time: number; price: number; text: string; color: string };
+  | { type: "label"; time: number; price: number; text: string; color: string }
+  | {
+      type: "box";
+      time1: number;
+      time2: number;
+      priceLow: number;
+      priceHigh: number;
+      label?: string;
+      color: string;
+      dashed?: boolean; // untuk bedakan yang "filled/invalidated" secara visual
+    };
 
 // Titik dalam RUANG DATA (harga & waktu), bukan pixel layar. Ini kuncinya:
 // karena disimpan sebagai harga & waktu, gambar akan otomatis "ikut"
@@ -104,7 +114,6 @@ export default function DrawableChart({
     "loading"
   );
   const [errorMsg, setErrorMsg] = useState("");
-  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -265,6 +274,36 @@ export default function DrawableChart({
           ctx.textAlign = "center";
           ctx.fillText(ann.text, point.x, point.y - 8);
           ctx.textAlign = "left";
+          ctx.restore();
+        } else if (ann.type === "box") {
+          const p1 = dataToPixel({
+            time: ann.time1 as UTCTimestamp,
+            price: ann.priceHigh,
+          });
+          const p2 = dataToPixel({
+            time: ann.time2 as UTCTimestamp,
+            price: ann.priceLow,
+          });
+          if (!p1 || !p2) continue;
+
+          const x = Math.min(p1.x, p2.x);
+          const y = Math.min(p1.y, p2.y);
+          const w = Math.abs(p2.x - p1.x);
+          const h = Math.abs(p2.y - p1.y);
+
+          ctx.save();
+          ctx.fillStyle = `${ann.color}22`;
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = ann.color;
+          ctx.lineWidth = 1;
+          if (ann.dashed) ctx.setLineDash([4, 3]);
+          ctx.strokeRect(x, y, w, h);
+
+          if (ann.label) {
+            ctx.fillStyle = ann.color;
+            ctx.font = "9px sans-serif";
+            ctx.fillText(ann.label, x + 3, y + 10);
+          }
           ctx.restore();
         }
       }
@@ -442,15 +481,6 @@ export default function DrawableChart({
       const pixel = getPixel(e);
       const point = pixelToData(pixel);
 
-      // DEBUG SEMENTARA — akan dihapus setelah bug ketemu
-      setDebugInfo(
-        `tool=${toolRef.current} | pixel=(${pixel.x.toFixed(
-          0
-        )},${pixel.y.toFixed(0)}) | canvas=${canvas!.width}x${canvas!.height} | ` +
-          `data=${point ? `t${point.time} p${point.price.toFixed(2)}` : "NULL"} | ` +
-          `drawing=${drawingRef.current ? "aktif" : "kosong"} | shapes=${shapesRef.current.length}`
-      );
-
       if (toolRef.current === "pointer" || !drawingRef.current || !point) return;
 
       const current = drawingRef.current;
@@ -520,11 +550,6 @@ export default function DrawableChart({
       </div>
 
       <div className="relative w-full h-[500px]">
-        {tool !== "pointer" && (
-          <div className="absolute top-0 left-0 right-0 z-10 text-[10px] font-mono bg-black/80 text-lime-400 px-2 py-1 pointer-events-none break-all">
-            DEBUG: {debugInfo || "gerakkan mouse di atas chart..."}
-          </div>
-        )}
         <div ref={chartContainerRef} className="absolute inset-0" />
         <canvas
           ref={canvasRef}
