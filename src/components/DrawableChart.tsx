@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { formatPrice } from "@/lib/format";
 import {
   createChart,
   CandlestickSeries,
@@ -231,7 +232,7 @@ export default function DrawableChart({
           // posisinya di PASS 2 supaya tidak saling tumpang tindih
           hlineLabels.push({
             y,
-            text: `${ann.label} ${ann.price.toFixed(2)}`,
+            text: `${ann.label} ${formatPrice(ann.price)}`,
             color: ann.color,
           });
         } else if (ann.type === "zone") {
@@ -388,6 +389,22 @@ export default function DrawableChart({
         }));
 
         series.setData(formatted);
+
+        // Skala harga (sumbu kanan) default lightweight-charts asumsi 2
+        // desimal — untuk token semurah PEPE ($0.00001-an), itu bikin
+        // semuanya tampil "0.00". Sesuaikan presisi berdasar harga close
+        // terakhir sebelum data di-render.
+        const lastClose = formatted[formatted.length - 1]?.close ?? 1;
+        const precision =
+          lastClose >= 1 ? 2 : lastClose >= 0.01 ? 4 : lastClose >= 0.0001 ? 6 : 8;
+        series.applyOptions({
+          priceFormat: {
+            type: "price",
+            precision,
+            minMove: Math.pow(10, -precision),
+          },
+        });
+
         chart.timeScale().fitContent();
         setStatus("ready");
         redraw();

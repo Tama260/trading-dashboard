@@ -1,4 +1,5 @@
 import Watchlist from "@/components/Watchlist";
+import StockWatchlist from "@/components/StockWatchlist";
 import PositionTracker from "@/components/PositionTracker";
 
 export default function Home() {
@@ -15,6 +16,8 @@ export default function Home() {
         </header>
 
         <Watchlist />
+
+        <StockWatchlist />
 
         <section>
           <PositionTracker />

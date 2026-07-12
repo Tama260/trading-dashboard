@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import LivePrice from "./LivePrice";
 import AnalysisSection from "./AnalysisSection";
+import TrendingByCategory from "./TrendingByCategory";
 
 const STORAGE_KEY = "trading-dashboard-watchlist";
 
@@ -73,6 +74,13 @@ export default function Watchlist() {
     setShowAddForm(false);
   }
 
+  function addSymbolDirect(symbol: string) {
+    if (symbols.includes(symbol)) return;
+    const updated = [...symbols, symbol];
+    setSymbols(updated);
+    saveWatchlist(updated);
+  }
+
   function removeSymbol(symbol: string) {
     const updated = symbols.filter((s) => s !== symbol);
     setSymbols(updated);
@@ -134,6 +142,8 @@ export default function Watchlist() {
           </button>
         </form>
       )}
+
+      <TrendingByCategory onAddToWatchlist={addSymbolDirect} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {symbols.map((s) => (

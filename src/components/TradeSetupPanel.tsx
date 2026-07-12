@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DrawableChart, { Annotation } from "./DrawableChart";
+import { formatPrice } from "@/lib/format";
 
 type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
@@ -444,24 +445,24 @@ export default function TradeSetupPanel({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4">
               <LevelBox
                 label="Entry Zone"
-                value={`${data.levels.entryLow.toFixed(
-                  2
-                )} - ${data.levels.entryHigh.toFixed(2)}`}
+                value={`${formatPrice(data.levels.entryLow)} - ${formatPrice(
+                  data.levels.entryHigh
+                )}`}
                 color="text-sky-400"
               />
               <LevelBox
                 label="Stop Loss"
-                value={data.levels.stopLoss.toFixed(2)}
+                value={formatPrice(data.levels.stopLoss)}
                 color="text-red-400"
               />
               <LevelBox
                 label="TP1"
-                value={data.levels.tp1.toFixed(2)}
+                value={formatPrice(data.levels.tp1)}
                 color="text-green-400"
               />
               <LevelBox
                 label="TP2"
-                value={data.levels.tp2.toFixed(2)}
+                value={formatPrice(data.levels.tp2)}
                 color="text-green-400"
               />
             </div>

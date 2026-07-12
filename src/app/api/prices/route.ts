@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTicker24hr } from "@/lib/binance";
+import { formatPrice } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol");
@@ -14,10 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     const ticker = await fetchTicker24hr(symbol);
     return NextResponse.json({
-      price: ticker.price.toFixed(2),
+      price: formatPrice(ticker.price),
       changePercent: ticker.changePercent.toFixed(2),
-      high: ticker.high.toFixed(2),
-      low: ticker.low.toFixed(2),
+      high: formatPrice(ticker.high),
+      low: formatPrice(ticker.low),
     });
   } catch (err) {
     return NextResponse.json(
