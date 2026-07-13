@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type StockPriceCardProps = {
   symbol: string;
-  market: "us" | "idx" | "gold";
+  market: "us" | "idx" | "gold" | "forex";
   label: string; // nama tampilan, misal "AAPL" atau "Emas (XAU/USD)"
   onRemove?: () => void;
 };
@@ -39,7 +39,7 @@ export default function StockPriceCard({
         const query =
           market === "gold"
             ? `market=gold`
-            : `symbol=${symbol}&market=${market}`;
+            : `symbol=${encodeURIComponent(symbol)}&market=${market}`;
         const res = await fetch(`/api/stocks?${query}`, {
           cache: "no-store",
         });
@@ -80,6 +80,7 @@ export default function StockPriceCard({
     us: "US",
     idx: "IDX",
     gold: "GOLD",
+    forex: "FX",
   }[market];
 
   return (

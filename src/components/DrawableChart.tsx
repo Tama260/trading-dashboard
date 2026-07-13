@@ -374,7 +374,7 @@ export default function DrawableChart({
         setStatus("loading");
         const marketParam = market ? `&market=${market}` : "";
         const res = await fetch(
-          `${klinesUrl}?symbol=${symbol}&interval=${interval}&limit=200${marketParam}`,
+          `${klinesUrl}?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=200${marketParam}`,
           { cache: "no-store" }
         );
         const json = await res.json();

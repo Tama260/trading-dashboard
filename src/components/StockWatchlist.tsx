@@ -7,7 +7,7 @@ import StockAnalysis from "./StockAnalysis";
 
 type StockItem = {
   symbol: string;
-  market: "us" | "idx" | "gold";
+  market: "us" | "idx" | "gold" | "forex";
   label: string;
 };
 
@@ -17,6 +17,8 @@ const DEFAULT_ITEMS: StockItem[] = [
   { symbol: "AAPL", market: "us", label: "AAPL" },
   { symbol: "TLKM", market: "idx", label: "TLKM" },
   { symbol: "", market: "gold", label: "Emas (XAU/USD)" },
+  { symbol: "EUR/USD", market: "forex", label: "EUR/USD" },
+  { symbol: "USD/IDR", market: "forex", label: "USD/IDR" },
 ];
 
 function loadItems(): StockItem[] {
@@ -44,7 +46,7 @@ export default function StockWatchlist() {
   const [hydrated, setHydrated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
-  const [newMarket, setNewMarket] = useState<"us" | "idx">("us");
+  const [newMarket, setNewMarket] = useState<"us" | "idx" | "forex">("us");
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -55,8 +57,14 @@ export default function StockWatchlist() {
 
   function addItem(e: React.FormEvent) {
     e.preventDefault();
-    const clean = newSymbol.trim().toUpperCase();
+    let clean = newSymbol.trim().toUpperCase();
     if (!clean) return;
+
+    // Forex butuh format "XXX/YYY" (misal EUR/USD). Kalau user ketik tanpa
+    // slash (EURUSD, 6 huruf), format otomatis jadi EUR/USD
+    if (newMarket === "forex" && !clean.includes("/") && clean.length === 6) {
+      clean = `${clean.slice(0, 3)}/${clean.slice(3)}`;
+    }
 
     const updated = [...items, { symbol: clean, market: newMarket, label: clean }];
     setItems(updated);
@@ -96,11 +104,11 @@ export default function StockWatchlist() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <span className="text-xs text-neutral-500 uppercase tracking-wide">
-            Saham & Emas
+            Saham, Emas & Forex
           </span>
           <p className="text-[11px] text-neutral-600 mt-0.5">
-            Butuh API key gratis dari twelvedata.com untuk saham AS & emas —
-            lihat catatan di bawah
+            Butuh API key gratis dari twelvedata.com untuk saham AS, emas &
+            forex — lihat catatan di bawah
           </p>
         </div>
         <button
@@ -119,16 +127,21 @@ export default function StockWatchlist() {
           <input
             value={newSymbol}
             onChange={(e) => setNewSymbol(e.target.value)}
-            placeholder="Contoh: TSLA atau BBCA"
+            placeholder={
+              newMarket === "forex" ? "Contoh: USDIDR atau GBP/USD" : "Contoh: TSLA atau BBCA"
+            }
             className="bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white"
           />
           <select
             value={newMarket}
-            onChange={(e) => setNewMarket(e.target.value as "us" | "idx")}
+            onChange={(e) =>
+              setNewMarket(e.target.value as "us" | "idx" | "forex")
+            }
             className="bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white"
           >
             <option value="us">Saham AS</option>
             <option value="idx">Saham IDX</option>
+            <option value="forex">Forex</option>
           </select>
           <button
             type="submit"
@@ -155,8 +168,11 @@ export default function StockWatchlist() {
 
       <p className="text-[11px] text-neutral-600 mt-3 mb-6">
         Saham IDX pakai sumber data tidak resmi (Yahoo Finance) — bisa
-        sewaktu-waktu berubah tanpa pemberitahuan. Saham AS & Emas pakai
-        Twelve Data (resmi, gratis, butuh API key sendiri).
+        sewaktu-waktu berubah tanpa pemberitahuan. Saham AS, Emas & Forex
+        pakai Twelve Data (resmi, gratis, butuh API key sendiri). Mau cek
+        stabilitas USDT? Tambah pasangan &quot;USDIDR&quot; di sini untuk
+        rujukan kurs asli, lalu bandingkan manual dengan harga USDT di
+        watchlist crypto.
       </p>
 
       <StockAnalysis items={items} />

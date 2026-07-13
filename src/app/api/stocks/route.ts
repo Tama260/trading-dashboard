@@ -5,7 +5,7 @@ import { formatPrice } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol");
-  const market = request.nextUrl.searchParams.get("market") || "us"; // "us" | "idx" | "gold"
+  const market = request.nextUrl.searchParams.get("market") || "us"; // "us" | "idx" | "gold" | "forex"
 
   if (market !== "gold" && !symbol) {
     return NextResponse.json(

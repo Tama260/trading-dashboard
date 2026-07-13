@@ -5,8 +5,14 @@ import DrawableChart from "./DrawableChart";
 
 type StockItem = {
   symbol: string;
-  market: "us" | "idx" | "gold";
+  market: "us" | "idx" | "gold" | "forex";
   label: string;
+};
+
+const MARKET_LABEL: Record<string, string> = {
+  us: "US",
+  idx: "IDX",
+  forex: "FX",
 };
 
 export default function StockAnalysis({ items }: { items: StockItem[] }) {
@@ -33,7 +39,8 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
   if (chartable.length === 0) {
     return (
       <div className="text-sm text-neutral-500 mb-6">
-        Tambahkan minimal 1 saham (AS/IDX) untuk melihat chart.
+        Tambahkan minimal 1 saham (AS/IDX) atau pasangan forex untuk melihat
+        chart.
       </div>
     );
   }
@@ -51,7 +58,7 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
         >
           {chartable.map((i) => (
             <option key={`${i.symbol}|${i.market}`} value={`${i.symbol}|${i.market}`}>
-              {i.label} ({i.market === "us" ? "US" : "IDX"})
+              {i.label} ({MARKET_LABEL[i.market] ?? i.market})
             </option>
           ))}
         </select>
