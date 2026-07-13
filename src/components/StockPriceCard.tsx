@@ -16,7 +16,7 @@ type Quote = {
   low: string;
 };
 
-const POLL_INTERVAL_MS = 15000; // saham/emas tidak update sesering crypto
+const POLL_INTERVAL_MS = 60000; // saham/emas kuota terbatas, jangan terlalu sering
 
 export default function StockPriceCard({
   symbol,

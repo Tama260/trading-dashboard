@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StockPriceCard from "./StockPriceCard";
+import StockTrendingByCategory from "./StockTrendingByCategory";
 
 type StockItem = {
   symbol: string;
@@ -61,6 +62,13 @@ export default function StockWatchlist() {
     saveItems(updated);
     setNewSymbol("");
     setShowAddForm(false);
+  }
+
+  function addItemDirect(symbol: string, market: "us" | "idx") {
+    if (items.some((i) => i.symbol === symbol && i.market === market)) return;
+    const updated = [...items, { symbol, market, label: symbol }];
+    setItems(updated);
+    saveItems(updated);
   }
 
   function removeItem(index: number) {
@@ -129,6 +137,8 @@ export default function StockWatchlist() {
           </button>
         </form>
       )}
+
+      <StockTrendingByCategory onAddToWatchlist={addItemDirect} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {items.map((item, i) => (

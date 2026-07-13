@@ -27,3 +27,26 @@ export const MARKET_CATEGORIES: { name: string; symbols: string[] }[] = [
     symbols: ["FETUSDT", "RENDERUSDT", "TAOUSDT", "GRTUSDT"],
   },
 ];
+
+// Kurasi manual saham populer per kategori. Daftar sengaja DIBATASI JUMLAHNYA
+// (5-6 per kategori) — khusus "Saham Luar" pakai Twelve Data yang jatah
+// gratisnya cuma 800 request/hari, jadi tidak boleh terlalu banyak symbol
+// dicek sekaligus.
+export const STOCK_CATEGORIES: {
+  name: string;
+  market: "us" | "idx";
+  symbols: string[];
+}[] = [
+  {
+    name: "Saham Luar (US)",
+    market: "us",
+    symbols: ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN"],
+  },
+  {
+    name: "Saham Indo (IDX)",
+    market: "idx",
+    // IDX pakai Yahoo Finance (tidak ada limit ketat seperti Twelve Data),
+    // jadi daftar boleh sedikit lebih banyak
+    symbols: ["BBCA", "BBRI", "TLKM", "ASII", "GOTO", "BMRI"],
+  },
+];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MARKET_CATEGORIES } from "@/lib/marketCategories";
+import { STOCK_CATEGORIES } from "@/lib/marketCategories";
 
 type Mover = {
   symbol: string;
@@ -9,15 +9,16 @@ type Mover = {
   changePercent: string;
 };
 
-const POLL_INTERVAL_MS = 60000;
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 menit — jaga kuota Twelve Data
 
-export default function TrendingByCategory({
+export default function StockTrendingByCategory({
   onAddToWatchlist,
 }: {
-  onAddToWatchlist: (symbol: string) => void;
+  onAddToWatchlist: (symbol: string, market: "us" | "idx") => void;
 }) {
-  const [categoryName, setCategoryName] = useState(MARKET_CATEGORIES[0].name);
+  const [categoryName, setCategoryName] = useState(STOCK_CATEGORIES[0].name);
   const [movers, setMovers] = useState<Mover[]>([]);
+  const [market, setMarket] = useState<"us" | "idx">("us");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -29,13 +30,14 @@ export default function TrendingByCategory({
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/trending?category=${encodeURIComponent(categoryName)}`,
+          `/api/stocks-trending?category=${encodeURIComponent(categoryName)}`,
           { cache: "no-store" }
         );
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Gagal memuat trending");
         if (!cancelled) {
           setMovers(json.movers ?? []);
+          setMarket(json.market);
           setError("");
         }
       } catch (err) {
@@ -61,14 +63,14 @@ export default function TrendingByCategory({
     <div className="mb-6">
       <div className="flex items-center gap-3 mb-3">
         <label className="text-xs text-neutral-500 uppercase tracking-wide">
-          Yang Lagi Happening:
+          Saham Lagi Happening:
         </label>
         <select
           value={categoryName}
           onChange={(e) => setCategoryName(e.target.value)}
           className="bg-neutral-900 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-white"
         >
-          {MARKET_CATEGORIES.map((c) => (
+          {STOCK_CATEGORIES.map((c) => (
             <option key={c.name} value={c.name}>
               {c.name}
             </option>
@@ -82,7 +84,10 @@ export default function TrendingByCategory({
         )}
         {error && <div className="text-sm text-red-400">{error}</div>}
         {!loading && !error && movers.length === 0 && (
-          <div className="text-sm text-neutral-500">Data tidak tersedia</div>
+          <div className="text-sm text-neutral-500">
+            Data tidak tersedia (cek API key Twelve Data kalau ini kategori
+            Saham Luar)
+          </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -95,7 +100,7 @@ export default function TrendingByCategory({
               >
                 <div>
                   <div className="font-medium text-neutral-200">
-                    {m.symbol.replace("USDT", "")}
+                    {m.symbol}
                   </div>
                   <div className="text-xs text-neutral-500">${m.price}</div>
                 </div>
@@ -108,7 +113,7 @@ export default function TrendingByCategory({
                     {isUp ? "▲" : "▼"} {m.changePercent}%
                   </span>
                   <button
-                    onClick={() => onAddToWatchlist(m.symbol)}
+                    onClick={() => onAddToWatchlist(m.symbol, market)}
                     title="Tambah ke watchlist"
                     className="text-neutral-600 hover:text-sky-400 w-5 h-5 flex items-center justify-center rounded-full hover:bg-neutral-800"
                   >
