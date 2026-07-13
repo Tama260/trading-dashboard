@@ -64,3 +64,74 @@ export async function fetchIdxStockQuote(symbol: string): Promise<StockQuote> {
     low: meta.regularMarketDayLow ?? price,
   };
 }
+
+export type StockKline = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+
+// Yahoo Finance chart endpoint SEBENARNYA sudah mengembalikan data OHLC
+// historis lengkap (dipakai untuk render chart di web Yahoo sendiri) — kita
+// tinggal ambil bagian "indicators.quote" yang selama ini tidak dipakai
+// saat cuma butuh quote sesaat.
+export async function fetchIdxStockKlines(
+  symbol: string,
+  range = "3mo",
+  interval = "1d"
+): Promise<StockKline[]> {
+  const cleanSymbol = symbol.toUpperCase().endsWith(".JK")
+    ? symbol.toUpperCase()
+    : `${symbol.toUpperCase()}.JK`;
+
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?range=${range}&interval=${interval}`,
+    {
+      cache: "no-store",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TradingDashboard/1.0)",
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      `Saham IDX "${symbol}" tidak ditemukan (status ${res.status})`
+    );
+  }
+
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+
+  if (!result || !result.timestamp) {
+    throw new Error(`Data candlestick "${symbol}" tidak tersedia`);
+  }
+
+  const timestamps: number[] = result.timestamp;
+  const quote = result.indicators.quote[0];
+
+  const klines: StockKline[] = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    // Yahoo kadang mengembalikan null untuk bar yang bursa-nya tutup —
+    // skip bar yang datanya tidak lengkap
+    if (
+      quote.open[i] == null ||
+      quote.high[i] == null ||
+      quote.low[i] == null ||
+      quote.close[i] == null
+    ) {
+      continue;
+    }
+    klines.push({
+      time: timestamps[i],
+      open: quote.open[i],
+      high: quote.high[i],
+      low: quote.low[i],
+      close: quote.close[i],
+    });
+  }
+
+  return klines;
+}

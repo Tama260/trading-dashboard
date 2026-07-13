@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import LivePrice from "./LivePrice";
 import AnalysisSection from "./AnalysisSection";
-import TrendingByCategory from "./TrendingByCategory";
+import { MARKET_CATEGORIES } from "@/lib/marketCategories";
 
 const STORAGE_KEY = "trading-dashboard-watchlist";
 
@@ -38,6 +38,8 @@ function saveWatchlist(symbols: string[]) {
   }
 }
 
+const MY_WATCHLIST_VALUE = "__my_watchlist__";
+
 export default function Watchlist() {
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [hydrated, setHydrated] = useState(false);
@@ -45,11 +47,58 @@ export default function Watchlist() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addError, setAddError] = useState("");
 
+  // Dropdown: "Watchlist Saya" ATAU salah satu kategori. Ini yang
+  // menentukan apa yang ditampilkan di grid utama di bawah.
+  const [viewMode, setViewMode] = useState(MY_WATCHLIST_VALUE);
+  const [trendingSymbols, setTrendingSymbols] = useState<string[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+  const [trendingError, setTrendingError] = useState("");
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSymbols(loadWatchlist());
     setHydrated(true);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Ambil data trending setiap kali kategori dipilih. setTrendingLoading/
+  // setTrendingError di awal effect ini WAJAR (bukan derived state) —
+  // ini pola standar "fetch on effect": reset status sebelum request baru,
+  // lalu update lagi setelah response datang.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (viewMode === MY_WATCHLIST_VALUE) return;
+
+    let cancelled = false;
+    setTrendingLoading(true);
+    setTrendingError("");
+
+    fetch(`/api/trending?category=${encodeURIComponent(viewMode)}`, {
+      cache: "no-store",
+    })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        if (!ok) throw new Error(json.error || "Gagal memuat trending");
+        setTrendingSymbols(
+          (json.movers as { symbol: string }[]).map((m) => m.symbol)
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTrendingError(
+            err instanceof Error ? err.message : "Terjadi kesalahan"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setTrendingLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   function addSymbol(e: React.FormEvent) {
@@ -100,12 +149,29 @@ export default function Watchlist() {
     );
   }
 
+  const isMyWatchlist = viewMode === MY_WATCHLIST_VALUE;
+  const displayedSymbols = isMyWatchlist ? symbols : trendingSymbols;
+
   return (
     <>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-neutral-500 uppercase tracking-wide">
-          Watchlist
-        </span>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+            Watchlist
+          </span>
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value)}
+            className="bg-neutral-900 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-white"
+          >
+            <option value={MY_WATCHLIST_VALUE}>Watchlist Saya</option>
+            {MARKET_CATEGORIES.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} — Lagi Happening
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => setShowAddForm((v) => !v)}
           className="text-xs px-3 py-1.5 rounded-md bg-sky-900 text-sky-300 hover:bg-sky-800 transition-colors"
@@ -143,17 +209,32 @@ export default function Watchlist() {
         </form>
       )}
 
-      <TrendingByCategory onAddToWatchlist={addSymbolDirect} />
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {symbols.map((s) => (
+        {!isMyWatchlist && trendingLoading && (
+          <div className="col-span-full text-sm text-neutral-500 text-center py-6">
+            Memuat trending {viewMode}...
+          </div>
+        )}
+        {!isMyWatchlist && trendingError && (
+          <div className="col-span-full text-sm text-red-400 text-center py-6">
+            {trendingError}
+          </div>
+        )}
+
+        {displayedSymbols.map((s) => (
           <LivePrice
             key={s}
             symbol={s.toLowerCase()}
-            onRemove={() => removeSymbol(s)}
+            onRemove={isMyWatchlist ? () => removeSymbol(s) : undefined}
+            onAdd={
+              !isMyWatchlist && !symbols.includes(s)
+                ? () => addSymbolDirect(s)
+                : undefined
+            }
           />
         ))}
-        {symbols.length === 0 && (
+
+        {isMyWatchlist && symbols.length === 0 && (
           <div className="col-span-full text-sm text-neutral-500 text-center py-6 border border-dashed border-neutral-800 rounded-xl">
             Watchlist kosong. Klik &quot;+ Tambah Koin&quot; untuk mulai.
           </div>

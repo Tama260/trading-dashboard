@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import StockPriceCard from "./StockPriceCard";
 import StockTrendingByCategory from "./StockTrendingByCategory";
+import StockAnalysis from "./StockAnalysis";
 
 type StockItem = {
   symbol: string;
@@ -152,11 +153,13 @@ export default function StockWatchlist() {
         ))}
       </div>
 
-      <p className="text-[11px] text-neutral-600 mt-3">
+      <p className="text-[11px] text-neutral-600 mt-3 mb-6">
         Saham IDX pakai sumber data tidak resmi (Yahoo Finance) — bisa
         sewaktu-waktu berubah tanpa pemberitahuan. Saham AS & Emas pakai
         Twelve Data (resmi, gratis, butuh API key sendiri).
       </p>
+
+      <StockAnalysis items={items} />
     </div>
   );
 }

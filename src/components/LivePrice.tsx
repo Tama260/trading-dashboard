@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 type LivePriceProps = {
   symbol: string; // contoh: "btcusdt"
-  onRemove?: () => void; // kalau diisi, muncul tombol hapus kecil di kartu
+  onRemove?: () => void; // kalau diisi, muncul tombol × (hapus dari watchlist)
+  onAdd?: () => void; // kalau diisi, muncul tombol + (tambah ke watchlist)
 };
 
 type TickerData = {
@@ -20,7 +21,7 @@ const POLL_INTERVAL_MS = 3000;
 // Ia bertanya ke "/api/prices" (server milik kita sendiri di Next.js),
 // dan server itu yang meneruskan ke Binance. Ini menghindari blokir ISP
 // yang berlaku di level browser/perangkat pengguna.
-export default function LivePrice({ symbol, onRemove }: LivePriceProps) {
+export default function LivePrice({ symbol, onRemove, onAdd }: LivePriceProps) {
   const [data, setData] = useState<TickerData | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">(
     "connecting"
@@ -100,6 +101,15 @@ export default function LivePrice({ symbol, onRemove }: LivePriceProps) {
               className="text-neutral-600 hover:text-red-400 text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-neutral-800"
             >
               ×
+            </button>
+          )}
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              title="Tambah ke watchlist"
+              className="text-neutral-600 hover:text-sky-400 text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-neutral-800"
+            >
+              +
             </button>
           )}
         </div>

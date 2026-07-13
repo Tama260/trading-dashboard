@@ -14,6 +14,11 @@ type DrawableChartProps = {
   symbol: string; // contoh: "BTCUSDT"
   interval?: string; // contoh: "1h", "15m", "1d"
   annotations?: Annotation[]; // level otomatis dari setup detection engine
+  // Endpoint klines kustom — dipakai supaya chart ini bisa dipakai ulang
+  // untuk saham/emas, bukan cuma crypto. Kalau tidak diisi, default ke
+  // /api/klines (endpoint Binance).
+  klinesUrl?: string;
+  market?: string; // parameter tambahan, dipakai stock-klines ("us"/"idx")
 };
 
 // Anotasi otomatis (bukan gambar manual user) — garis horizontal untuk
@@ -99,6 +104,8 @@ export default function DrawableChart({
   symbol,
   interval = "1h",
   annotations = [],
+  klinesUrl = "/api/klines",
+  market,
 }: DrawableChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -365,8 +372,9 @@ export default function DrawableChart({
     async function loadData() {
       try {
         setStatus("loading");
+        const marketParam = market ? `&market=${market}` : "";
         const res = await fetch(
-          `/api/klines?symbol=${symbol}&interval=${interval}&limit=200`,
+          `${klinesUrl}?symbol=${symbol}&interval=${interval}&limit=200${marketParam}`,
           { cache: "no-store" }
         );
         const json = await res.json();
@@ -427,7 +435,7 @@ export default function DrawableChart({
       chart.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, interval]);
+  }, [symbol, interval, klinesUrl, market]);
 
   useEffect(() => {
     const container = chartContainerRef.current;
