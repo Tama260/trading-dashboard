@@ -21,7 +21,7 @@ export default function AnalysisSection({
 
   if (availableSymbols.length === 0) {
     return (
-      <div className="text-sm text-neutral-500 mb-6">
+      <div className="text-sm text-[var(--text-muted)] mb-6">
         Tambahkan minimal 1 koin ke watchlist untuk mulai analisis.
       </div>
     );
@@ -30,13 +30,13 @@ export default function AnalysisSection({
   return (
     <>
       <div className="flex items-center gap-3 mb-4">
-        <label className="text-xs text-neutral-500 uppercase tracking-wide">
+        <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
           Analisis untuk:
         </label>
         <select
           value={effectiveSymbol}
           onChange={(e) => setSymbol(e.target.value)}
-          className="bg-neutral-900 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-white"
+          className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded-md px-3 py-1.5 text-sm text-[var(--text-primary)]"
         >
           {availableSymbols.map((s) => (
             <option key={s} value={s}>

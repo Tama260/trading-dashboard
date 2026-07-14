@@ -323,22 +323,22 @@ export default function TradeSetupPanel({
 
   const biasColor =
     data?.bias === "Bullish"
-      ? "text-green-400"
+      ? "text-[var(--badge-green-text)]"
       : data?.bias === "Bearish"
-      ? "text-red-400"
+      ? "text-[var(--badge-red-text)]"
       : "text-orange-400";
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+      <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Setup Detection — {symbol} ({interval})
           </span>
           {data && (
-            <span className="text-xs text-neutral-500">
+            <span className="text-xs text-[var(--text-muted)]">
               Confidence:{" "}
-              <span className="text-neutral-300">{data.confidence}%</span>
+              <span className="text-[var(--text-secondary)]">{data.confidence}%</span>
             </span>
           )}
         </div>
@@ -380,7 +380,7 @@ export default function TradeSetupPanel({
             active={visible.tp2}
             onClick={() => toggle("tp2")}
           />
-          <span className="w-px bg-neutral-800 mx-1" />
+          <span className="w-px bg-[var(--bg-card-secondary)] mx-1" />
           <LevelChip
             label="Structure (HH/HL/LH/LL)"
             color="#a855f7"
@@ -413,9 +413,9 @@ export default function TradeSetupPanel({
           />
         </div>
 
-        {error && <div className="text-sm text-red-400">{error}</div>}
+        {error && <div className="text-sm text-[var(--badge-red-text)]">{error}</div>}
         {!data && !error && (
-          <div className="text-sm text-neutral-500">Menganalisis...</div>
+          <div className="text-sm text-[var(--text-muted)]">Menganalisis...</div>
         )}
 
         {data && (
@@ -423,7 +423,7 @@ export default function TradeSetupPanel({
             <div className={`text-2xl font-semibold mb-3 ${biasColor}`}>
               {data.bias}{" "}
               {data.breakout && (
-                <span className="text-sm text-neutral-400 font-normal">
+                <span className="text-sm text-[var(--text-tertiary)] font-normal">
                   (Breakout Terkonfirmasi)
                 </span>
               )}
@@ -434,7 +434,7 @@ export default function TradeSetupPanel({
                 <li
                   key={i}
                   className={`text-xs flex items-center gap-2 ${
-                    item.passed ? "text-neutral-300" : "text-neutral-600"
+                    item.passed ? "text-[var(--text-secondary)]" : "text-[var(--text-faint)]"
                   }`}
                 >
                   <span>{item.passed ? "✓" : "✗"}</span> {item.label}
@@ -448,27 +448,27 @@ export default function TradeSetupPanel({
                 value={`${formatPrice(data.levels.entryLow)} - ${formatPrice(
                   data.levels.entryHigh
                 )}`}
-                color="text-sky-400"
+                color="text-[var(--badge-sky-text)]"
               />
               <LevelBox
                 label="Stop Loss"
                 value={formatPrice(data.levels.stopLoss)}
-                color="text-red-400"
+                color="text-[var(--badge-red-text)]"
               />
               <LevelBox
                 label="TP1"
                 value={formatPrice(data.levels.tp1)}
-                color="text-green-400"
+                color="text-[var(--badge-green-text)]"
               />
               <LevelBox
                 label="TP2"
                 value={formatPrice(data.levels.tp2)}
-                color="text-green-400"
+                color="text-[var(--badge-green-text)]"
               />
             </div>
 
             {structureData && (
-              <div className="flex flex-wrap gap-4 text-xs text-neutral-500 border-t border-neutral-800 pt-3">
+              <div className="flex flex-wrap gap-4 text-xs text-[var(--text-muted)] border-t border-[var(--border-card)] pt-3">
                 <span>
                   Liquidity Pool:{" "}
                   <span className="text-purple-400">
@@ -485,7 +485,7 @@ export default function TradeSetupPanel({
                       <span
                         className={
                           lastEvent.event === "CHoCH"
-                            ? "text-yellow-400"
+                            ? "text-[var(--badge-yellow-text)]"
                             : "text-purple-400"
                         }
                       >
@@ -553,8 +553,8 @@ function LevelBox({
   color: string;
 }) {
   return (
-    <div className="rounded-lg bg-neutral-800/50 p-3">
-      <div className="text-neutral-500 mb-1">{label}</div>
+    <div className="rounded-lg bg-[var(--bg-card-secondary)]/50 p-3">
+      <div className="text-[var(--text-muted)] mb-1">{label}</div>
       <div className={`font-semibold ${color}`}>{value}</div>
     </div>
   );

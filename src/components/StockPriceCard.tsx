@@ -16,7 +16,7 @@ type Quote = {
   low: string;
 };
 
-const POLL_INTERVAL_MS = 60000; // saham/emas kuota terbatas, jangan terlalu sering
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 menit — kuota Twelve Data 800/hari harus dihemat serius
 
 export default function StockPriceCard({
   symbol,
@@ -84,13 +84,13 @@ export default function StockPriceCard({
   }[market];
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-neutral-400 uppercase tracking-wide">
+          <span className="text-sm text-[var(--text-tertiary)] uppercase tracking-wide">
             {label}
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-500">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-card-secondary)] text-[var(--text-muted)]">
             {marketBadge}
           </span>
         </div>
@@ -98,10 +98,10 @@ export default function StockPriceCard({
           <span
             className={`text-xs px-2 py-0.5 rounded-full ${
               status === "live"
-                ? "bg-green-900 text-green-400"
+                ? "bg-[var(--badge-green-bg)] text-[var(--badge-green-text)]"
                 : status === "connecting"
-                ? "bg-yellow-900 text-yellow-400"
-                : "bg-red-900 text-red-400"
+                ? "bg-[var(--badge-yellow-bg)] text-[var(--badge-yellow-text)]"
+                : "bg-[var(--badge-red-bg)] text-[var(--badge-red-text)]"
             }`}
           >
             {status === "live"
@@ -114,7 +114,7 @@ export default function StockPriceCard({
             <button
               onClick={onRemove}
               title="Hapus"
-              className="text-neutral-600 hover:text-red-400 text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-neutral-800"
+              className="text-[var(--text-faint)] hover:text-[var(--badge-red-text)] text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)]"
             >
               ×
             </button>
@@ -125,28 +125,28 @@ export default function StockPriceCard({
       {data ? (
         <>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-semibold text-white">
+            <span className="text-3xl font-semibold text-[var(--text-primary)]">
               ${data.price}
             </span>
             <span
               className={`text-sm font-medium ${
-                isUp ? "text-green-400" : "text-red-400"
+                isUp ? "text-[var(--badge-green-text)]" : "text-[var(--badge-red-text)]"
               }`}
             >
               {isUp ? "▲" : "▼"} {data.changePercent}%
             </span>
           </div>
-          <div className="flex gap-4 mt-3 text-xs text-neutral-500">
+          <div className="flex gap-4 mt-3 text-xs text-[var(--text-muted)]">
             <span>
-              High: <span className="text-neutral-300">${data.high}</span>
+              High: <span className="text-[var(--text-secondary)]">${data.high}</span>
             </span>
             <span>
-              Low: <span className="text-neutral-300">${data.low}</span>
+              Low: <span className="text-[var(--text-secondary)]">${data.low}</span>
             </span>
           </div>
         </>
       ) : (
-        <div className="text-neutral-500 text-sm">
+        <div className="text-[var(--text-muted)] text-sm">
           {status === "error" && errorReason
             ? errorReason
             : "Menunggu data..."}

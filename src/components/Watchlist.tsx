@@ -142,7 +142,7 @@ export default function Watchlist() {
         {DEFAULT_WATCHLIST.map((s) => (
           <div
             key={s}
-            className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 h-[110px] animate-pulse"
+            className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5 h-[110px] animate-pulse"
           />
         ))}
       </div>
@@ -156,13 +156,13 @@ export default function Watchlist() {
     <>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Watchlist
           </span>
           <select
             value={viewMode}
             onChange={(e) => setViewMode(e.target.value)}
-            className="bg-neutral-900 border border-neutral-700 rounded-md px-3 py-1.5 text-sm text-white"
+            className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded-md px-3 py-1.5 text-sm text-[var(--text-primary)]"
           >
             <option value={MY_WATCHLIST_VALUE}>Watchlist Saya</option>
             {MARKET_CATEGORIES.map((c) => (
@@ -174,7 +174,7 @@ export default function Watchlist() {
         </div>
         <button
           onClick={() => setShowAddForm((v) => !v)}
-          className="text-xs px-3 py-1.5 rounded-md bg-sky-900 text-sky-300 hover:bg-sky-800 transition-colors"
+          className="text-xs px-3 py-1.5 rounded-md bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)] hover:bg-sky-800 transition-colors"
         >
           {showAddForm ? "Batal" : "+ Tambah Koin"}
         </button>
@@ -183,7 +183,7 @@ export default function Watchlist() {
       {showAddForm && (
         <form
           onSubmit={addSymbol}
-          className="flex flex-wrap items-start gap-2 mb-4 p-3 rounded-lg bg-neutral-800/50"
+          className="flex flex-wrap items-start gap-2 mb-4 p-3 rounded-lg bg-[var(--bg-card-secondary)]/50"
         >
           <div>
             <input
@@ -193,16 +193,16 @@ export default function Watchlist() {
                 setAddError("");
               }}
               placeholder="Contoh: DOGEUSDT"
-              className="bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white"
+              className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-3 py-1.5 text-sm text-[var(--text-primary)]"
               autoFocus
             />
             {addError && (
-              <div className="text-xs text-red-400 mt-1">{addError}</div>
+              <div className="text-xs text-[var(--badge-red-text)] mt-1">{addError}</div>
             )}
           </div>
           <button
             type="submit"
-            className="text-xs px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-colors"
+            className="text-xs px-4 py-2 rounded-md bg-sky-600 text-[var(--text-primary)] hover:bg-sky-500 transition-colors"
           >
             Tambah
           </button>
@@ -211,12 +211,12 @@ export default function Watchlist() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {!isMyWatchlist && trendingLoading && (
-          <div className="col-span-full text-sm text-neutral-500 text-center py-6">
+          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6">
             Memuat trending {viewMode}...
           </div>
         )}
         {!isMyWatchlist && trendingError && (
-          <div className="col-span-full text-sm text-red-400 text-center py-6">
+          <div className="col-span-full text-sm text-[var(--badge-red-text)] text-center py-6">
             {trendingError}
           </div>
         )}
@@ -235,7 +235,7 @@ export default function Watchlist() {
         ))}
 
         {isMyWatchlist && symbols.length === 0 && (
-          <div className="col-span-full text-sm text-neutral-500 text-center py-6 border border-dashed border-neutral-800 rounded-xl">
+          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6 border border-dashed border-[var(--border-card)] rounded-xl">
             Watchlist kosong. Klik &quot;+ Tambah Koin&quot; untuk mulai.
           </div>
         )}

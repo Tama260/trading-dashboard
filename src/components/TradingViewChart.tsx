@@ -75,7 +75,7 @@ export default function TradingViewChart({ symbol }: TradingViewChartProps) {
   }, [symbol, containerId]);
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-2 h-[500px]">
+    <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-2 h-[500px]">
       <div id={containerId} ref={containerRef} className="w-full h-full" />
     </div>
   );

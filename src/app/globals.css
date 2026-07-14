@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
+/* Default: DARK (sesuai tampilan asli dashboard ini) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-page: #000000;
+  --bg-card: #171717;       /* setara neutral-900 */
+  --bg-card-secondary: #262626; /* setara neutral-800 */
+  --bg-card-tertiary: #404040;  /* setara neutral-700 */
+  --border-card: #262626;
+  --border-card-strong: #404040;
+  --border-page: #171717;
+
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d4; /* neutral-300 */
+  --text-tertiary: #a3a3a3;  /* neutral-400 */
+  --text-muted: #737373;     /* neutral-500 */
+  --text-faint: #525252;     /* neutral-600 */
+
+  --badge-green-bg: #14532d;
+  --badge-green-text: #4ade80;
+  --badge-red-bg: #7f1d1d;
+  --badge-red-text: #f87171;
+  --badge-yellow-bg: #713f12;
+  --badge-yellow-text: #facc15;
+  --badge-sky-bg: #0c4a6e;
+  --badge-sky-text: #38bdf8;
+}
+
+/* LIGHT — diaktifkan lewat class .light di elemen <html> */
+.light {
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-secondary: #f1f5f9;
+  --bg-card-tertiary: #e2e8f0;
+  --border-card: #e2e8f0;
+  --border-card-strong: #cbd5e1;
+  --border-page: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
+  --text-faint: #94a3b8;
+
+  --badge-green-bg: #dcfce7;
+  --badge-green-text: #16a34a;
+  --badge-red-bg: #fee2e2;
+  --badge-red-text: #dc2626;
+  --badge-yellow-bg: #fef9c3;
+  --badge-yellow-text: #ca8a04;
+  --badge-sky-bg: #e0f2fe;
+  --badge-sky-text: #0284c7;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }

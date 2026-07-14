@@ -546,7 +546,7 @@ export default function DrawableChart({
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-2">
+    <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-2">
       <div className="flex items-center gap-2 px-2 py-1.5 mb-1 flex-wrap">
         <ToolButton
           active={tool === "pointer"}
@@ -570,7 +570,7 @@ export default function DrawableChart({
         />
         <button
           onClick={handleClear}
-          className="text-xs px-3 py-1.5 rounded-md bg-neutral-800 text-neutral-400 hover:bg-red-900 hover:text-red-300 transition-colors ml-auto"
+          className="text-xs px-3 py-1.5 rounded-md bg-[var(--bg-card-secondary)] text-[var(--text-tertiary)] hover:bg-[var(--badge-red-bg)] hover:text-red-300 transition-colors ml-auto"
         >
           Hapus Semua
         </button>
@@ -600,12 +600,12 @@ export default function DrawableChart({
           }}
         />
         {status === "loading" && (
-          <div className="absolute inset-0 flex items-center justify-center text-neutral-500 text-sm bg-neutral-900/60 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)] text-sm bg-[var(--bg-card)]/60 pointer-events-none">
             Memuat data chart...
           </div>
         )}
         {status === "demo" && (
-          <div className="absolute top-2 left-2 text-xs bg-yellow-900/90 text-yellow-300 px-3 py-1.5 rounded-md pointer-events-none max-w-[80%]">
+          <div className="absolute top-2 left-2 text-xs bg-[var(--badge-yellow-bg)]/90 text-yellow-300 px-3 py-1.5 rounded-md pointer-events-none max-w-[80%]">
             ⚠ Data demo (live gagal: {errorMsg}) — fitur gambar tetap bisa
             dites
           </div>
@@ -629,8 +629,8 @@ function ToolButton({
       onClick={onClick}
       className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
         active
-          ? "bg-sky-900 text-sky-300"
-          : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+          ? "bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)]"
+          : "bg-[var(--bg-card-secondary)] text-[var(--text-tertiary)] hover:bg-[var(--bg-card-tertiary)]"
       }`}
     >
       {label}

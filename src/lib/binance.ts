@@ -104,21 +104,77 @@ export type Kline = {
   volume: number;
 };
 
+// Ambil candlestick dari Bitget sebagai fallback — dipakai kalau token
+// tidak ada di Binance (misal HYPE). Format response Bitget beda dari
+// Binance, dan urutan datanya perlu dibalik (Bitget kembalikan terbaru
+// duluan, kita butuh kronologis lama->baru).
+async function fetchKlinesFromBitget(
+  symbol: string,
+  interval: string,
+  limit: number
+): Promise<Kline[]> {
+  const granularityMap: Record<string, string> = {
+    "1m": "1min",
+    "5m": "5min",
+    "15m": "15min",
+    "30m": "30min",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1day",
+  };
+  const granularity = granularityMap[interval] || "1h";
+
+  const res = await fetch(
+    `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&limit=${limit}`,
+    { cache: "no-store" }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Bitget merespons status ${res.status}`);
+  }
+
+  const json = await res.json();
+  const raw = json?.data as string[][] | undefined;
+
+  if (!raw || raw.length === 0) {
+    throw new Error("Data candlestick tidak ditemukan di Bitget");
+  }
+
+  return raw
+    .map((k) => ({
+      time: Math.floor(parseInt(k[0], 10) / 1000),
+      open: parseFloat(k[1]),
+      high: parseFloat(k[2]),
+      low: parseFloat(k[3]),
+      close: parseFloat(k[4]),
+      volume: parseFloat(k[5]),
+    }))
+    .reverse();
+}
+
 export async function fetchKlines(
   symbol: string,
   interval = "1h",
   limit = 200
 ): Promise<Kline[]> {
-  const raw = (await fetchWithFallback(
-    `/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`
-  )) as unknown[][];
+  try {
+    const raw = (await fetchWithFallback(
+      `/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`
+    )) as unknown[][];
 
-  return raw.map((k) => ({
-    time: Math.floor((k[0] as number) / 1000),
-    open: parseFloat(k[1] as string),
-    high: parseFloat(k[2] as string),
-    low: parseFloat(k[3] as string),
-    close: parseFloat(k[4] as string),
-    volume: parseFloat(k[5] as string),
-  }));
+    return raw.map((k) => ({
+      time: Math.floor((k[0] as number) / 1000),
+      open: parseFloat(k[1] as string),
+      high: parseFloat(k[2] as string),
+      low: parseFloat(k[3] as string),
+      close: parseFloat(k[4] as string),
+      volume: parseFloat(k[5] as string),
+    }));
+  } catch (binanceError) {
+    try {
+      return await fetchKlinesFromBitget(symbol, interval, limit);
+    } catch {
+      throw binanceError;
+    }
+  }
 }

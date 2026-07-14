@@ -168,29 +168,29 @@ export default function PositionTracker() {
   // tampilkan shell kosong
   if (!hydrated) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-        <span className="text-xs text-neutral-500 uppercase tracking-wide">
+      <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
+        <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
           Position Tracker
         </span>
-        <div className="text-sm text-neutral-500 mt-3">Memuat...</div>
+        <div className="text-sm text-[var(--text-muted)] mt-3">Memuat...</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Position Tracker
           </span>
-          <p className="text-[11px] text-neutral-600 mt-0.5">
+          <p className="text-[11px] text-[var(--text-faint)] mt-0.5">
             Data tersimpan lokal di browser kamu, bukan di server
           </p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="text-xs px-3 py-1.5 rounded-md bg-sky-900 text-sky-300 hover:bg-sky-800 transition-colors"
+          className="text-xs px-3 py-1.5 rounded-md bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)] hover:bg-sky-800 transition-colors"
         >
           {showForm ? "Batal" : "+ Tambah Posisi"}
         </button>
@@ -199,35 +199,35 @@ export default function PositionTracker() {
       {showForm && (
         <form
           onSubmit={addPosition}
-          className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5 p-4 rounded-lg bg-neutral-800/50 text-sm"
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5 p-4 rounded-lg bg-[var(--bg-card-secondary)]/50 text-sm"
         >
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Symbol
             </label>
             <input
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               placeholder="BTCUSDT"
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
               required
             />
           </div>
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Arah
             </label>
             <select
               value={side}
               onChange={(e) => setSide(e.target.value as "long" | "short")}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
             >
               <option value="long">Long</option>
               <option value="short">Short</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Entry Price
             </label>
             <input
@@ -235,12 +235,12 @@ export default function PositionTracker() {
               step="any"
               value={entryPrice}
               onChange={(e) => setEntryPrice(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
               required
             />
           </div>
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Size
             </label>
             <input
@@ -248,12 +248,12 @@ export default function PositionTracker() {
               step="any"
               value={size}
               onChange={(e) => setSize(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
               required
             />
           </div>
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Stop Loss (opsional)
             </label>
             <input
@@ -261,11 +261,11 @@ export default function PositionTracker() {
               step="any"
               value={stopLoss}
               onChange={(e) => setStopLoss(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
             />
           </div>
           <div>
-            <label className="text-xs text-neutral-500 block mb-1">
+            <label className="text-xs text-[var(--text-muted)] block mb-1">
               Take Profit (opsional)
             </label>
             <input
@@ -273,13 +273,13 @@ export default function PositionTracker() {
               step="any"
               value={takeProfit}
               onChange={(e) => setTakeProfit(e.target.value)}
-              className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-white"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-2 py-1.5 text-[var(--text-primary)]"
             />
           </div>
           <div className="col-span-2 md:col-span-3">
             <button
               type="submit"
-              className="text-xs px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-colors"
+              className="text-xs px-4 py-2 rounded-md bg-sky-600 text-[var(--text-primary)] hover:bg-sky-500 transition-colors"
             >
               Simpan Posisi
             </button>
@@ -288,11 +288,11 @@ export default function PositionTracker() {
       )}
 
       {openPositions.length > 0 && (
-        <div className="mb-3 text-xs text-neutral-500">
+        <div className="mb-3 text-xs text-[var(--text-muted)]">
           Total Unrealized P&L:{" "}
           <span
             className={
-              totalUnrealizedPnl >= 0 ? "text-green-400" : "text-red-400"
+              totalUnrealizedPnl >= 0 ? "text-[var(--badge-green-text)]" : "text-[var(--badge-red-text)]"
             }
           >
             {totalUnrealizedPnl >= 0 ? "+" : ""}
@@ -303,7 +303,7 @@ export default function PositionTracker() {
 
       <div className="space-y-2">
         {positions.length === 0 && (
-          <div className="text-sm text-neutral-500 text-center py-6">
+          <div className="text-sm text-[var(--text-muted)] text-center py-6">
             Belum ada posisi. Klik &quot;+ Tambah Posisi&quot; untuk mulai
             tracking.
           </div>
@@ -314,20 +314,20 @@ export default function PositionTracker() {
           return (
             <div
               key={pos.id}
-              className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-neutral-800/40 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-[var(--bg-card-secondary)]/40 text-sm"
             >
               <div className="flex items-center gap-3">
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full ${
                     pos.side === "long"
-                      ? "bg-green-900 text-green-400"
-                      : "bg-red-900 text-red-400"
+                      ? "bg-[var(--badge-green-bg)] text-[var(--badge-green-text)]"
+                      : "bg-[var(--badge-red-bg)] text-[var(--badge-red-text)]"
                   }`}
                 >
                   {pos.side.toUpperCase()}
                 </span>
                 <span className="font-medium">{pos.symbol}</span>
-                <span className="text-neutral-500 text-xs">
+                <span className="text-[var(--text-muted)] text-xs">
                   Entry {pos.entryPrice} · Size {pos.size}
                 </span>
               </div>
@@ -335,26 +335,26 @@ export default function PositionTracker() {
                 {pnl !== null ? (
                   <span
                     className={`text-sm font-semibold ${
-                      pnl >= 0 ? "text-green-400" : "text-red-400"
+                      pnl >= 0 ? "text-[var(--badge-green-text)]" : "text-[var(--badge-red-text)]"
                     }`}
                   >
                     {pnl >= 0 ? "+" : ""}
                     {pnl.toFixed(2)}
                   </span>
                 ) : (
-                  <span className="text-xs text-neutral-600">
+                  <span className="text-xs text-[var(--text-faint)]">
                     memuat harga...
                   </span>
                 )}
                 <button
                   onClick={() => closePosition(pos.id)}
-                  className="text-xs px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-card-tertiary)] hover:bg-[var(--bg-card-tertiary)] text-[var(--text-secondary)]"
                 >
                   Tutup
                 </button>
                 <button
                   onClick={() => deletePosition(pos.id)}
-                  className="text-xs text-neutral-600 hover:text-red-400"
+                  className="text-xs text-[var(--text-faint)] hover:text-[var(--badge-red-text)]"
                 >
                   Hapus
                 </button>
@@ -365,7 +365,7 @@ export default function PositionTracker() {
 
         {closedPositions.length > 0 && (
           <details className="mt-4">
-            <summary className="text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
+            <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-secondary)]">
               Riwayat posisi tertutup ({closedPositions.length})
             </summary>
             <div className="space-y-2 mt-2">
@@ -374,14 +374,14 @@ export default function PositionTracker() {
                 return (
                   <div
                     key={pos.id}
-                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-neutral-800/20 text-sm opacity-70"
+                    className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg bg-[var(--bg-card-secondary)]/20 text-sm opacity-70"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-700 text-neutral-400">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-card-tertiary)] text-[var(--text-tertiary)]">
                         {pos.side.toUpperCase()}
                       </span>
                       <span className="font-medium">{pos.symbol}</span>
-                      <span className="text-neutral-500 text-xs">
+                      <span className="text-[var(--text-muted)] text-xs">
                         {pos.entryPrice} → {pos.closedPrice}
                       </span>
                     </div>
@@ -389,7 +389,7 @@ export default function PositionTracker() {
                       {pnl !== null && (
                         <span
                           className={`text-sm font-semibold ${
-                            pnl >= 0 ? "text-green-400" : "text-red-400"
+                            pnl >= 0 ? "text-[var(--badge-green-text)]" : "text-[var(--badge-red-text)]"
                           }`}
                         >
                           {pnl >= 0 ? "+" : ""}
@@ -398,7 +398,7 @@ export default function PositionTracker() {
                       )}
                       <button
                         onClick={() => deletePosition(pos.id)}
-                        className="text-xs text-neutral-600 hover:text-red-400"
+                        className="text-xs text-[var(--text-faint)] hover:text-[var(--badge-red-text)]"
                       >
                         Hapus
                       </button>

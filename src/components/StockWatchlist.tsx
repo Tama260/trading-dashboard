@@ -92,7 +92,7 @@ export default function StockWatchlist() {
         {DEFAULT_ITEMS.map((s, i) => (
           <div
             key={i}
-            className="rounded-xl border border-neutral-800 bg-neutral-900 p-5 h-[110px] animate-pulse"
+            className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5 h-[110px] animate-pulse"
           />
         ))}
       </div>
@@ -103,17 +103,17 @@ export default function StockWatchlist() {
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Saham, Emas & Forex
           </span>
-          <p className="text-[11px] text-neutral-600 mt-0.5">
+          <p className="text-[11px] text-[var(--text-faint)] mt-0.5">
             Butuh API key gratis dari twelvedata.com untuk saham AS, emas &
             forex — lihat catatan di bawah
           </p>
         </div>
         <button
           onClick={() => setShowAddForm((v) => !v)}
-          className="text-xs px-3 py-1.5 rounded-md bg-sky-900 text-sky-300 hover:bg-sky-800 transition-colors"
+          className="text-xs px-3 py-1.5 rounded-md bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)] hover:bg-sky-800 transition-colors"
         >
           {showAddForm ? "Batal" : "+ Tambah Saham"}
         </button>
@@ -122,7 +122,7 @@ export default function StockWatchlist() {
       {showAddForm && (
         <form
           onSubmit={addItem}
-          className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg bg-neutral-800/50"
+          className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg bg-[var(--bg-card-secondary)]/50"
         >
           <input
             value={newSymbol}
@@ -130,14 +130,14 @@ export default function StockWatchlist() {
             placeholder={
               newMarket === "forex" ? "Contoh: USDIDR atau GBP/USD" : "Contoh: TSLA atau BBCA"
             }
-            className="bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white"
+            className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-3 py-1.5 text-sm text-[var(--text-primary)]"
           />
           <select
             value={newMarket}
             onChange={(e) =>
               setNewMarket(e.target.value as "us" | "idx" | "forex")
             }
-            className="bg-neutral-900 border border-neutral-700 rounded px-3 py-1.5 text-sm text-white"
+            className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-3 py-1.5 text-sm text-[var(--text-primary)]"
           >
             <option value="us">Saham AS</option>
             <option value="idx">Saham IDX</option>
@@ -145,7 +145,7 @@ export default function StockWatchlist() {
           </select>
           <button
             type="submit"
-            className="text-xs px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-colors"
+            className="text-xs px-4 py-2 rounded-md bg-sky-600 text-[var(--text-primary)] hover:bg-sky-500 transition-colors"
           >
             Tambah
           </button>
@@ -166,7 +166,7 @@ export default function StockWatchlist() {
         ))}
       </div>
 
-      <p className="text-[11px] text-neutral-600 mt-3 mb-6">
+      <p className="text-[11px] text-[var(--text-faint)] mt-3 mb-6">
         Saham IDX pakai sumber data tidak resmi (Yahoo Finance) — bisa
         sewaktu-waktu berubah tanpa pemberitahuan. Saham AS, Emas & Forex
         pakai Twelve Data (resmi, gratis, butuh API key sendiri). Mau cek

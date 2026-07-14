@@ -65,13 +65,13 @@ function CardShell({
   error: string;
 }) {
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-      <span className="text-xs text-neutral-500 uppercase tracking-wide">
+    <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
+      <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
         {label}
       </span>
       <div className="mt-3">
         {error ? (
-          <span className="text-sm text-red-400">{error}</span>
+          <span className="text-sm text-[var(--badge-red-text)]">{error}</span>
         ) : (
           children
         )}
@@ -88,23 +88,23 @@ function RegimeCard({
   error: string;
 }) {
   const colorMap = {
-    Uptrend: "text-green-400",
-    Downtrend: "text-red-400",
+    Uptrend: "text-[var(--badge-green-text)]",
+    Downtrend: "text-[var(--badge-red-text)]",
     Neutral: "text-orange-400",
   };
 
   return (
     <CardShell label="Market Regime" error={error}>
       {!data ? (
-        <span className="text-neutral-500 text-sm">Menghitung...</span>
+        <span className="text-[var(--text-muted)] text-sm">Menghitung...</span>
       ) : (
         <>
           <span className={`text-2xl font-semibold ${colorMap[data.regime]}`}>
             {data.regime}
           </span>
-          <div className="mt-2 text-xs text-neutral-500">
+          <div className="mt-2 text-xs text-[var(--text-muted)]">
             Confidence:{" "}
-            <span className="text-neutral-300">{data.confidence}%</span>
+            <span className="text-[var(--text-secondary)]">{data.confidence}%</span>
           </div>
         </>
       )}
@@ -122,23 +122,23 @@ function SentimentCard({
   return (
     <CardShell label="Sentiment" error={error}>
       {!data ? (
-        <span className="text-neutral-500 text-sm">Menghitung...</span>
+        <span className="text-[var(--text-muted)] text-sm">Menghitung...</span>
       ) : !data.sentiment ? (
-        <span className="text-neutral-500 text-sm">Data tidak tersedia</span>
+        <span className="text-[var(--text-muted)] text-sm">Data tidak tersedia</span>
       ) : (
         <>
-          <span className="text-2xl font-semibold text-white">
+          <span className="text-2xl font-semibold text-[var(--text-primary)]">
             {data.sentiment.label}
           </span>
           <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 relative">
             <div
-              className="absolute -top-1 w-3 h-3 rounded-full bg-white border-2 border-neutral-900"
+              className="absolute -top-1 w-3 h-3 rounded-full bg-white border-2 border-[var(--border-page)]"
               style={{ left: `calc(${data.sentiment.value}% - 6px)` }}
             />
           </div>
-          <div className="flex justify-between mt-2 text-xs text-neutral-500">
+          <div className="flex justify-between mt-2 text-xs text-[var(--text-muted)]">
             <span>Fear</span>
-            <span className="text-neutral-300">
+            <span className="text-[var(--text-secondary)]">
               {data.sentiment.value} / 100
             </span>
             <span>Greed</span>
@@ -157,15 +157,15 @@ function VolatilityCard({
   error: string;
 }) {
   const colorMap = {
-    Low: "text-green-400",
+    Low: "text-[var(--badge-green-text)]",
     Medium: "text-orange-400",
-    High: "text-red-400",
+    High: "text-[var(--badge-red-text)]",
   };
 
   return (
     <CardShell label="Volatility" error={error}>
       {!data ? (
-        <span className="text-neutral-500 text-sm">Menghitung...</span>
+        <span className="text-[var(--text-muted)] text-sm">Menghitung...</span>
       ) : (
         <>
           <span
@@ -175,9 +175,9 @@ function VolatilityCard({
           >
             {data.volatility.level}
           </span>
-          <div className="mt-2 text-xs text-neutral-500">
+          <div className="mt-2 text-xs text-[var(--text-muted)]">
             ATR (1H):{" "}
-            <span className="text-neutral-300">
+            <span className="text-[var(--text-secondary)]">
               {data.volatility.atrPercent}%
             </span>
           </div>
