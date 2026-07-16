@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import StockPriceCard from "./StockPriceCard";
-import StockTrendingByCategory from "./StockTrendingByCategory";
 import StockAnalysis from "./StockAnalysis";
+import { STOCK_CATEGORIES } from "@/lib/marketCategories";
 
 type StockItem = {
   symbol: string;
@@ -41,12 +41,22 @@ function saveItems(items: StockItem[]) {
   }
 }
 
+const MY_WATCHLIST_VALUE = "__my_watchlist__";
+
 export default function StockWatchlist() {
   const [items, setItems] = useState<StockItem[]>(DEFAULT_ITEMS);
   const [hydrated, setHydrated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
   const [newMarket, setNewMarket] = useState<"us" | "idx" | "forex">("us");
+
+  // Sama seperti crypto: dropdown "Watchlist Saya" ATAU salah satu kategori
+  // trending. Ini yang menentukan apa yang ditampilkan di grid utama DAN
+  // di dropdown chart di bawahnya.
+  const [viewMode, setViewMode] = useState(MY_WATCHLIST_VALUE);
+  const [trendingItems, setTrendingItems] = useState<StockItem[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+  const [trendingError, setTrendingError] = useState("");
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -55,13 +65,54 @@ export default function StockWatchlist() {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (viewMode === MY_WATCHLIST_VALUE) return;
+
+    let cancelled = false;
+    setTrendingLoading(true);
+    setTrendingError("");
+
+    const category = STOCK_CATEGORIES.find((c) => c.name === viewMode);
+
+    fetch(`/api/stocks-trending?category=${encodeURIComponent(viewMode)}`, {
+      cache: "no-store",
+    })
+      .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+      .then(({ ok, json }) => {
+        if (cancelled) return;
+        if (!ok) throw new Error(json.error || "Gagal memuat trending");
+        const market = (json.market as "us" | "idx") ?? category?.market ?? "us";
+        setTrendingItems(
+          (json.movers as { symbol: string }[]).map((m) => ({
+            symbol: m.symbol,
+            market,
+            label: m.symbol,
+          }))
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTrendingError(
+            err instanceof Error ? err.message : "Terjadi kesalahan"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setTrendingLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   function addItem(e: React.FormEvent) {
     e.preventDefault();
     let clean = newSymbol.trim().toUpperCase();
     if (!clean) return;
 
-    // Forex butuh format "XXX/YYY" (misal EUR/USD). Kalau user ketik tanpa
-    // slash (EURUSD, 6 huruf), format otomatis jadi EUR/USD
     if (newMarket === "forex" && !clean.includes("/") && clean.length === 6) {
       clean = `${clean.slice(0, 3)}/${clean.slice(3)}`;
     }
@@ -73,7 +124,7 @@ export default function StockWatchlist() {
     setShowAddForm(false);
   }
 
-  function addItemDirect(symbol: string, market: "us" | "idx") {
+  function addItemDirect(symbol: string, market: "us" | "idx" | "forex" | "gold") {
     if (items.some((i) => i.symbol === symbol && i.market === market)) return;
     const updated = [...items, { symbol, market, label: symbol }];
     setItems(updated);
@@ -99,14 +150,31 @@ export default function StockWatchlist() {
     );
   }
 
+  const isMyWatchlist = viewMode === MY_WATCHLIST_VALUE;
+  const displayedItems = isMyWatchlist ? items : trendingItems;
+
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
-          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
-            Saham, Emas & Forex
-          </span>
-          <p className="text-[11px] text-[var(--text-faint)] mt-0.5">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+              Saham, Emas & Forex
+            </span>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+              className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded-md px-3 py-1.5 text-sm text-[var(--text-primary)]"
+            >
+              <option value={MY_WATCHLIST_VALUE}>Watchlist Saya</option>
+              {STOCK_CATEGORIES.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name} — Lagi Happening
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[11px] text-[var(--text-faint)] mt-1">
             Butuh API key gratis dari twelvedata.com untuk saham AS, emas &
             forex — lihat catatan di bawah
           </p>
@@ -152,18 +220,42 @@ export default function StockWatchlist() {
         </form>
       )}
 
-      <StockTrendingByCategory onAddToWatchlist={addItemDirect} />
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {items.map((item, i) => (
+        {!isMyWatchlist && trendingLoading && (
+          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6">
+            Memuat trending {viewMode}...
+          </div>
+        )}
+        {!isMyWatchlist && trendingError && (
+          <div className="col-span-full text-sm text-[var(--badge-red-text)] text-center py-6">
+            {trendingError}
+          </div>
+        )}
+
+        {displayedItems.map((item, i) => (
           <StockPriceCard
             key={`${item.symbol}-${item.market}-${i}`}
             symbol={item.symbol}
             market={item.market}
             label={item.label}
-            onRemove={() => removeItem(i)}
+            onRemove={isMyWatchlist ? () => removeItem(i) : undefined}
+            onAdd={
+              !isMyWatchlist &&
+              !items.some(
+                (existing) =>
+                  existing.symbol === item.symbol && existing.market === item.market
+              )
+                ? () => addItemDirect(item.symbol, item.market)
+                : undefined
+            }
           />
         ))}
+
+        {isMyWatchlist && items.length === 0 && (
+          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6 border border-dashed border-[var(--border-card)] rounded-xl">
+            Watchlist kosong. Klik &quot;+ Tambah Saham&quot; untuk mulai.
+          </div>
+        )}
       </div>
 
       <p className="text-[11px] text-[var(--text-faint)] mt-3 mb-6">
@@ -175,7 +267,7 @@ export default function StockWatchlist() {
         USDT di watchlist crypto.
       </p>
 
-      <StockAnalysis items={items} />
+      <StockAnalysis items={displayedItems} />
     </div>
   );
 }

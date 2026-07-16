@@ -7,6 +7,7 @@ type StockPriceCardProps = {
   market: "us" | "idx" | "gold" | "forex";
   label: string; // nama tampilan, misal "AAPL" atau "Emas (XAU/USD)"
   onRemove?: () => void;
+  onAdd?: () => void;
 };
 
 type Quote = {
@@ -28,6 +29,7 @@ export default function StockPriceCard({
   market,
   label,
   onRemove,
+  onAdd,
 }: StockPriceCardProps) {
   const [data, setData] = useState<Quote | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">(
@@ -125,6 +127,15 @@ export default function StockPriceCard({
               className="text-[var(--text-faint)] hover:text-[var(--badge-red-text)] text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)]"
             >
               ×
+            </button>
+          )}
+          {onAdd && (
+            <button
+              onClick={onAdd}
+              title="Tambah ke watchlist"
+              className="text-[var(--text-faint)] hover:text-[var(--badge-sky-text)] text-sm w-5 h-5 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)]"
+            >
+              +
             </button>
           )}
         </div>
