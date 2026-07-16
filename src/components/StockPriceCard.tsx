@@ -16,7 +16,12 @@ type Quote = {
   low: string;
 };
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 menit — kuota Twelve Data 800/hari harus dihemat serius
+const POLL_INTERVAL_MS = 30000; // Yahoo (sumber utama) jauh lebih toleran dari Twelve Data
+
+// Tetap kasih jeda kecil biar tidak menembak sekaligus persis di detik ke-0
+// (sopan ke Yahoo, dan tetap membantu kalau kebetulan fallback ke Twelve Data)
+let cardCounter = 0;
+const STAGGER_MS = 1500;
 
 export default function StockPriceCard({
   symbol,
@@ -33,6 +38,8 @@ export default function StockPriceCard({
 
   useEffect(() => {
     let cancelled = false;
+
+    const myDelay = (cardCounter++ % 20) * STAGGER_MS;
 
     async function fetchPrice() {
       try {
@@ -66,10 +73,11 @@ export default function StockPriceCard({
       }
     }
 
-    fetchPrice();
+    const initialTimer = setTimeout(fetchPrice, myDelay);
 
     return () => {
       cancelled = true;
+      clearTimeout(initialTimer);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [symbol, market]);

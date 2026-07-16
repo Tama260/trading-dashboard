@@ -241,7 +241,7 @@ export default function Watchlist() {
         )}
       </div>
 
-      <AnalysisSection availableSymbols={symbols} />
+      <AnalysisSection availableSymbols={displayedSymbols} />
     </>
   );
 }

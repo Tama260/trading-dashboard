@@ -167,12 +167,12 @@ export default function StockWatchlist() {
       </div>
 
       <p className="text-[11px] text-[var(--text-faint)] mt-3 mb-6">
-        Saham IDX pakai sumber data tidak resmi (Yahoo Finance) — bisa
-        sewaktu-waktu berubah tanpa pemberitahuan. Saham AS, Emas & Forex
-        pakai Twelve Data (resmi, gratis, butuh API key sendiri). Mau cek
-        stabilitas USDT? Tambah pasangan &quot;USDIDR&quot; di sini untuk
-        rujukan kurs asli, lalu bandingkan manual dengan harga USDT di
-        watchlist crypto.
+        Sumber data: Yahoo Finance (utama, tidak resmi tapi limit longgar) →
+        Finnhub (cadangan saham AS, kalau API key diisi) → Twelve Data
+        (cadangan terakhir). Kalau semua gagal, error akan ditampilkan jelas
+        di kartu. Mau cek stabilitas USDT? Tambah pasangan &quot;USDIDR&quot;
+        di sini untuk rujukan kurs asli, lalu bandingkan manual dengan harga
+        USDT di watchlist crypto.
       </p>
 
       <StockAnalysis items={items} />

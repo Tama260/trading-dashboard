@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchStockQuote } from "@/lib/twelveData";
-import { fetchIdxStockQuote } from "@/lib/idxStocks";
+import { fetchYahooQuote } from "@/lib/idxStocks";
+import { fetchFinnhubQuote } from "@/lib/finnhub";
 import { formatPrice } from "@/lib/format";
 import { STOCK_CATEGORIES } from "@/lib/marketCategories";
+
+// 3 lapis fallback: Yahoo (gratis, tanpa key, limit longgar) -> Finnhub
+// (butuh key, tapi kalau ada, 60 req/menit) -> Twelve Data (butuh key,
+// paling ketat, 8 req/menit)
+async function fetchQuoteForMarket(symbol: string, market: "us" | "idx") {
+  try {
+    return await fetchYahooQuote(symbol, market);
+  } catch (yahooError) {
+    if (market === "idx") throw yahooError; // IDX cuma ada di Yahoo
+    try {
+      return await fetchFinnhubQuote(symbol);
+    } catch {
+      return await fetchStockQuote(symbol);
+    }
+  }
+}
 
 export async function GET(request: NextRequest) {
   const categoryName = request.nextUrl.searchParams.get("category");
@@ -19,18 +36,13 @@ export async function GET(request: NextRequest) {
     const quotes = await Promise.all(
       category.symbols.map(async (symbol) => {
         try {
-          const quote =
-            category.market === "idx"
-              ? await fetchIdxStockQuote(symbol)
-              : await fetchStockQuote(symbol);
+          const quote = await fetchQuoteForMarket(symbol, category.market);
           return {
             symbol,
             price: formatPrice(quote.price),
             changePercent: quote.changePercent,
           };
         } catch {
-          // 1 symbol gagal (misal quota Twelve Data habis) — skip, jangan
-          // gagalkan seluruh kategori
           return null;
         }
       })

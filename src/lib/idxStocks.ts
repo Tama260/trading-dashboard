@@ -22,33 +22,54 @@ export type StockQuote = {
   low: number;
 };
 
-export async function fetchIdxStockQuote(symbol: string): Promise<StockQuote> {
-  const cleanSymbol = symbol.toUpperCase().endsWith(".JK")
-    ? symbol.toUpperCase()
-    : `${symbol.toUpperCase()}.JK`;
+// Konversi symbol + market ke format ticker Yahoo Finance. Yahoo pakai
+// suffix berbeda per jenis aset:
+// - Saham AS: symbol apa adanya (AAPL)
+// - Saham IDX: symbol + ".JK" (BBCA.JK)
+// - Forex: hilangkan slash, tambah "=X" (EUR/USD -> EURUSD=X)
+// - Emas: format forex-style "XAUUSD=X"
+function toYahooSymbol(
+  symbol: string,
+  market: "us" | "idx" | "forex" | "gold"
+): string {
+  const clean = symbol.toUpperCase();
+  if (market === "idx") {
+    return clean.endsWith(".JK") ? clean : `${clean}.JK`;
+  }
+  if (market === "gold") {
+    return "XAUUSD=X";
+  }
+  if (market === "forex") {
+    return `${clean.replace("/", "")}=X`;
+  }
+  return clean; // saham AS, apa adanya
+}
+
+export async function fetchYahooQuote(
+  symbol: string,
+  market: "us" | "idx" | "forex" | "gold"
+): Promise<StockQuote> {
+  const yahooSymbol = toYahooSymbol(symbol, market);
 
   const res = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`,
     {
       cache: "no-store",
       headers: {
-        // Beberapa endpoint Yahoo menolak request tanpa User-Agent yang wajar
         "User-Agent": "Mozilla/5.0 (compatible; TradingDashboard/1.0)",
       },
     }
   );
 
   if (!res.ok) {
-    throw new Error(
-      `Saham IDX "${symbol}" tidak ditemukan (status ${res.status})`
-    );
+    throw new Error(`Yahoo Finance merespons status ${res.status}`);
   }
 
   const json = await res.json();
   const result = json?.chart?.result?.[0];
 
   if (!result) {
-    throw new Error(`Saham IDX "${symbol}" tidak ditemukan`);
+    throw new Error(`Symbol "${symbol}" tidak ditemukan di Yahoo Finance`);
   }
 
   const meta = result.meta;
@@ -57,7 +78,7 @@ export async function fetchIdxStockQuote(symbol: string): Promise<StockQuote> {
   const changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
 
   return {
-    symbol: cleanSymbol,
+    symbol: yahooSymbol,
     price,
     changePercent,
     high: meta.regularMarketDayHigh ?? price,
@@ -65,29 +86,16 @@ export async function fetchIdxStockQuote(symbol: string): Promise<StockQuote> {
   };
 }
 
-export type StockKline = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-};
-
-// Yahoo Finance chart endpoint SEBENARNYA sudah mengembalikan data OHLC
-// historis lengkap (dipakai untuk render chart di web Yahoo sendiri) — kita
-// tinggal ambil bagian "indicators.quote" yang selama ini tidak dipakai
-// saat cuma butuh quote sesaat.
-export async function fetchIdxStockKlines(
+export async function fetchYahooKlines(
   symbol: string,
+  market: "us" | "idx" | "forex" | "gold",
   range = "3mo",
   interval = "1d"
 ): Promise<StockKline[]> {
-  const cleanSymbol = symbol.toUpperCase().endsWith(".JK")
-    ? symbol.toUpperCase()
-    : `${symbol.toUpperCase()}.JK`;
+  const yahooSymbol = toYahooSymbol(symbol, market);
 
   const res = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?range=${range}&interval=${interval}`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=${range}&interval=${interval}`,
     {
       cache: "no-store",
       headers: {
@@ -97,9 +105,7 @@ export async function fetchIdxStockKlines(
   );
 
   if (!res.ok) {
-    throw new Error(
-      `Saham IDX "${symbol}" tidak ditemukan (status ${res.status})`
-    );
+    throw new Error(`Yahoo Finance merespons status ${res.status}`);
   }
 
   const json = await res.json();
@@ -114,8 +120,6 @@ export async function fetchIdxStockKlines(
 
   const klines: StockKline[] = [];
   for (let i = 0; i < timestamps.length; i++) {
-    // Yahoo kadang mengembalikan null untuk bar yang bursa-nya tutup —
-    // skip bar yang datanya tidak lengkap
     if (
       quote.open[i] == null ||
       quote.high[i] == null ||
@@ -135,3 +139,11 @@ export async function fetchIdxStockKlines(
 
   return klines;
 }
+
+export type StockKline = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
