@@ -1,6 +1,7 @@
 import Watchlist from "@/components/Watchlist";
 import StockWatchlist from "@/components/StockWatchlist";
 import PositionTracker from "@/components/PositionTracker";
+import NewsFeed from "@/components/NewsFeed";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Home() {
@@ -25,6 +26,8 @@ export default function Home() {
         <Watchlist />
 
         <StockWatchlist />
+
+        <NewsFeed />
 
         <section>
           <PositionTracker />

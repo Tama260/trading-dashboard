@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DrawableChart, { Annotation } from "./DrawableChart";
 import { formatPrice } from "@/lib/format";
+import AIChat from "./AIChat";
 
 type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
@@ -501,6 +502,23 @@ export default function TradeSetupPanel({
       </div>
 
       <DrawableChart symbol={symbol} interval={interval} annotations={annotations} />
+
+      <AIChat
+        context={
+          data
+            ? {
+                symbol,
+                bias: data.bias,
+                confidence: data.confidence,
+                entryLow: data.levels.entryLow,
+                entryHigh: data.levels.entryHigh,
+                stopLoss: data.levels.stopLoss,
+                tp1: data.levels.tp1,
+                tp2: data.levels.tp2,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }
