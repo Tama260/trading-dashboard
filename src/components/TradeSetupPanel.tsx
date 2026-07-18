@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DrawableChart, { Annotation } from "./DrawableChart";
 import { formatPrice } from "@/lib/format";
-import AIChat from "./AIChat";
+import { useAnalysisContext } from "@/lib/analysisContext";
 
 type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
@@ -94,6 +94,7 @@ export default function TradeSetupPanel({
     null
   );
   const [error, setError] = useState("");
+  const { setContext } = useAnalysisContext();
 
   // Kontrol per-garis — default: level actionable (entry/SL/TP) tampil,
   // resistance/support & structure/liquidity dimatikan biar chart bersih
@@ -161,6 +162,23 @@ export default function TradeSetupPanel({
       clearTimeout(timer);
     };
   }, [symbol, interval]);
+
+  // Dorong context analisis terbaru ke provider global, supaya
+  // FloatingAIChat (posisinya di luar komponen ini) tetap tahu symbol +
+  // setup apa yang sedang ditampilkan ke user.
+  useEffect(() => {
+    if (!data) return;
+    setContext({
+      symbol,
+      bias: data.bias,
+      confidence: data.confidence,
+      entryLow: data.levels.entryLow,
+      entryHigh: data.levels.entryHigh,
+      stopLoss: data.levels.stopLoss,
+      tp1: data.levels.tp1,
+      tp2: data.levels.tp2,
+    });
+  }, [data, symbol, setContext]);
 
   const setupAnnotations: Annotation[] = data
     ? [
@@ -502,23 +520,6 @@ export default function TradeSetupPanel({
       </div>
 
       <DrawableChart symbol={symbol} interval={interval} annotations={annotations} />
-
-      <AIChat
-        context={
-          data
-            ? {
-                symbol,
-                bias: data.bias,
-                confidence: data.confidence,
-                entryLow: data.levels.entryLow,
-                entryHigh: data.levels.entryHigh,
-                stopLoss: data.levels.stopLoss,
-                tp1: data.levels.tp1,
-                tp2: data.levels.tp2,
-              }
-            : undefined
-        }
-      />
     </div>
   );
 }

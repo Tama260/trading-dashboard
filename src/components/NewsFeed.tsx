@@ -17,12 +17,15 @@ function timeAgo(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 1) return "baru saja";
-  if (diffMin < 60) return `${diffMin} menit lalu`;
+  if (diffMin < 60) return `${diffMin}m lalu`;
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} jam lalu`;
-  return `${Math.floor(diffHour / 24)} hari lalu`;
+  if (diffHour < 24) return `${diffHour}j lalu`;
+  return `${Math.floor(diffHour / 24)}h lalu`;
 }
 
+// Didesain sebagai SIDEBAR: sticky (tetap di layar saat halaman utama
+// di-scroll), tinggi dibatasi dengan scroll internal sendiri — supaya
+// tidak bikin halaman utama jadi panjang.
 export default function NewsFeed() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [category, setCategory] = useState<string>("");
@@ -64,12 +67,12 @@ export default function NewsFeed() {
   }, [category]);
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+    <div className="sticky top-6 rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] flex flex-col max-h-[calc(100vh-3rem)]">
+      <div className="p-4 border-b border-[var(--border-card)]">
+        <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide block mb-2">
           Berita Market
         </span>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap">
           {[
             { value: "", label: "Semua" },
             { value: "crypto", label: "Crypto" },
@@ -78,7 +81,7 @@ export default function NewsFeed() {
             <button
               key={c.value}
               onClick={() => setCategory(c.value)}
-              className="text-xs px-3 py-1 rounded-full border transition-colors"
+              className="text-[11px] px-2.5 py-1 rounded-full border transition-colors"
               style={
                 category === c.value
                   ? {
@@ -99,7 +102,7 @@ export default function NewsFeed() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] divide-y divide-[var(--border-card)]">
+      <div className="overflow-y-auto flex-1 divide-y divide-[var(--border-card)]">
         {loading && news.length === 0 && (
           <div className="p-4 text-sm text-[var(--text-muted)]">
             Memuat berita...
@@ -122,9 +125,9 @@ export default function NewsFeed() {
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block p-4 hover:bg-[var(--bg-card-secondary)] transition-colors"
+            className="block p-3 hover:bg-[var(--bg-card-secondary)] transition-colors"
           >
-            <div className="flex items-center gap-2 mb-1 text-xs">
+            <div className="flex items-center gap-1.5 mb-1 text-[10px]">
               <span
                 className="px-1.5 py-0.5 rounded"
                 style={{
@@ -138,21 +141,15 @@ export default function NewsFeed() {
                 {timeAgo(item.pubDate)}
               </span>
             </div>
-            <div className="text-sm text-[var(--text-primary)] font-medium mb-1">
+            <div className="text-xs text-[var(--text-primary)] font-medium leading-snug line-clamp-3">
               {item.title}
             </div>
-            {item.snippet && (
-              <div className="text-xs text-[var(--text-muted)] line-clamp-2">
-                {item.snippet}
-              </div>
-            )}
           </a>
         ))}
       </div>
 
-      <p className="text-[11px] text-[var(--text-faint)] mt-2">
-        Sumber: RSS feed resmi (CoinDesk, CoinTelegraph, Decrypt,
-        Investing.com). Klik judul untuk baca lengkap di situs aslinya.
+      <p className="text-[10px] text-[var(--text-faint)] p-3 border-t border-[var(--border-card)]">
+        RSS: CoinDesk, CoinTelegraph, Decrypt, Investing.com
       </p>
     </div>
   );

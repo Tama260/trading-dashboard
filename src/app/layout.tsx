@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AnalysisContextProvider } from "@/lib/analysisContext";
 
 export const metadata: Metadata = {
   title: "Trading Intelligence Dashboard",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <AnalysisContextProvider>{children}</AnalysisContextProvider>
+      </body>
     </html>
   );
 }

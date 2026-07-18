@@ -3,6 +3,7 @@ import StockWatchlist from "@/components/StockWatchlist";
 import PositionTracker from "@/components/PositionTracker";
 import NewsFeed from "@/components/NewsFeed";
 import ThemeToggle from "@/components/ThemeToggle";
+import FloatingAIChat from "@/components/FloatingAIChat";
 
 export default function Home() {
   return (
@@ -10,7 +11,7 @@ export default function Home() {
       className="min-h-screen p-6 md:p-10"
       style={{ backgroundColor: "var(--bg-page)", color: "var(--text-primary)" }}
     >
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">
@@ -23,15 +24,26 @@ export default function Home() {
           <ThemeToggle />
         </header>
 
-        <Watchlist />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+          {/* Kolom utama */}
+          <div>
+            <Watchlist />
+            <StockWatchlist />
+            <section>
+              <PositionTracker />
+            </section>
+          </div>
 
-        <StockWatchlist />
-
-        <NewsFeed />
-
-        <section>
-          <PositionTracker />
-        </section>
+          {/* Sidebar berita — sticky, tinggi dibatasi ke viewport, scroll
+              sendiri di dalam sidebar-nya. Ini kuncinya supaya berita
+              sebanyak apapun TIDAK ikut memperpanjang scroll halaman utama */}
+          <aside
+            className="sticky top-6 overflow-y-auto"
+            style={{ maxHeight: "calc(100vh - 3rem)" }}
+          >
+            <NewsFeed />
+          </aside>
+        </div>
 
         <footer
           className="mt-8 text-xs pt-4"
@@ -41,6 +53,8 @@ export default function Home() {
           sinyal bersifat rule-based. DYOR (Do Your Own Research).
         </footer>
       </div>
+
+      <FloatingAIChat />
     </main>
   );
 }
