@@ -183,6 +183,19 @@ export default function FloatingAIChat() {
               className="p-4 border-b space-y-3 flex-shrink-0 overflow-y-auto"
               style={{ borderColor: "var(--border-card)", backgroundColor: "var(--bg-card-secondary)", maxHeight: "50vh" }}
             >
+              <div
+                className="text-[11px] p-2 rounded"
+                style={{
+                  backgroundColor: "var(--badge-green-bg)",
+                  color: "var(--badge-green-text)",
+                }}
+              >
+                💡 Mau yang beneran gratis (tanpa kartu kredit)? Pilih{" "}
+                <strong>OpenAI-compatible</strong>, Base URL{" "}
+                <code>https://api.groq.com/openai/v1</code>, model{" "}
+                <code>llama-3.3-70b-versatile</code>. Daftar key gratis di{" "}
+                <strong>console.groq.com</strong>.
+              </div>
               <div>
                 <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
                   Provider
@@ -199,8 +212,8 @@ export default function FloatingAIChat() {
                     color: "var(--text-primary)",
                   }}
                 >
-                  <option value="anthropic">Anthropic (Claude)</option>
-                  <option value="openai">OpenAI-compatible (OpenAI, DeepSeek, Groq)</option>
+                  <option value="anthropic">Anthropic (Claude) — berbayar</option>
+                  <option value="openai">OpenAI-compatible (OpenAI/DeepSeek berbayar, Groq gratis)</option>
                 </select>
               </div>
               <div>
@@ -213,7 +226,7 @@ export default function FloatingAIChat() {
                   placeholder={
                     settings.provider === "anthropic"
                       ? "claude-3-5-haiku-20241022"
-                      : "gpt-4o-mini"
+                      : "llama-3.3-70b-versatile (Groq, gratis)"
                   }
                   className="w-full border rounded px-2 py-1.5 text-sm"
                   style={{
@@ -231,7 +244,7 @@ export default function FloatingAIChat() {
                   <input
                     value={settings.baseUrl}
                     onChange={(e) => updateSettings({ baseUrl: e.target.value })}
-                    placeholder="https://api.deepseek.com/v1"
+                    placeholder="https://api.groq.com/openai/v1 (gratis)"
                     className="w-full border rounded px-2 py-1.5 text-sm"
                     style={{
                       backgroundColor: "var(--bg-card)",

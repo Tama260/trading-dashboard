@@ -23,9 +23,9 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diffHour / 24)}h lalu`;
 }
 
-// Didesain sebagai SIDEBAR: sticky (tetap di layar saat halaman utama
-// di-scroll), tinggi dibatasi dengan scroll internal sendiri — supaya
-// tidak bikin halaman utama jadi panjang.
+// Komponen ini sekarang murni "isi konten" — tidak lagi ngatur posisi
+// sticky/tinggi sendiri (itu jadi tanggung jawab pembungkusnya, misal
+// NewsDrawer). Teks juga diperbesar supaya nyaman dibaca di panel lebar.
 export default function NewsFeed() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [category, setCategory] = useState<string>("");
@@ -67,12 +67,9 @@ export default function NewsFeed() {
   }, [category]);
 
   return (
-    <div className="sticky top-6 rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] flex flex-col max-h-[calc(100vh-3rem)]">
-      <div className="p-4 border-b border-[var(--border-card)]">
-        <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide block mb-2">
-          Berita Market
-        </span>
-        <div className="flex gap-1.5 flex-wrap">
+    <div className="flex flex-col h-full">
+      <div className="pb-4 mb-2 border-b border-[var(--border-card)]">
+        <div className="flex gap-2 flex-wrap">
           {[
             { value: "", label: "Semua" },
             { value: "crypto", label: "Crypto" },
@@ -81,7 +78,7 @@ export default function NewsFeed() {
             <button
               key={c.value}
               onClick={() => setCategory(c.value)}
-              className="text-[11px] px-2.5 py-1 rounded-full border transition-colors"
+              className="text-sm px-3 py-1.5 rounded-full border transition-colors"
               style={
                 category === c.value
                   ? {
@@ -102,7 +99,7 @@ export default function NewsFeed() {
         </div>
       </div>
 
-      <div className="overflow-y-auto flex-1 divide-y divide-[var(--border-card)]">
+      <div className="overflow-y-auto flex-1 divide-y divide-[var(--border-card)] -mx-1">
         {loading && news.length === 0 && (
           <div className="p-4 text-sm text-[var(--text-muted)]">
             Memuat berita...
@@ -125,11 +122,11 @@ export default function NewsFeed() {
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block p-3 hover:bg-[var(--bg-card-secondary)] transition-colors"
+            className="block px-1 py-4 hover:bg-[var(--bg-card-secondary)] transition-colors rounded-lg"
           >
-            <div className="flex items-center gap-1.5 mb-1 text-[10px]">
+            <div className="flex items-center gap-2 mb-2 text-xs">
               <span
-                className="px-1.5 py-0.5 rounded"
+                className="px-2 py-1 rounded font-medium"
                 style={{
                   backgroundColor: "var(--bg-card-secondary)",
                   color: "var(--text-tertiary)",
@@ -141,14 +138,19 @@ export default function NewsFeed() {
                 {timeAgo(item.pubDate)}
               </span>
             </div>
-            <div className="text-xs text-[var(--text-primary)] font-medium leading-snug line-clamp-3">
+            <div className="text-base text-[var(--text-primary)] font-medium leading-snug">
               {item.title}
             </div>
+            {item.snippet && (
+              <div className="text-sm text-[var(--text-tertiary)] mt-1.5 leading-relaxed line-clamp-2">
+                {item.snippet}
+              </div>
+            )}
           </a>
         ))}
       </div>
 
-      <p className="text-[10px] text-[var(--text-faint)] p-3 border-t border-[var(--border-card)]">
+      <p className="text-xs text-[var(--text-faint)] pt-3 mt-2 border-t border-[var(--border-card)]">
         RSS: CoinDesk, CoinTelegraph, Decrypt, Investing.com
       </p>
     </div>

@@ -1,7 +1,7 @@
 import Watchlist from "@/components/Watchlist";
 import StockWatchlist from "@/components/StockWatchlist";
 import PositionTracker from "@/components/PositionTracker";
-import NewsFeed from "@/components/NewsFeed";
+import NewsDrawer from "@/components/NewsDrawer";
 import ThemeToggle from "@/components/ThemeToggle";
 import FloatingAIChat from "@/components/FloatingAIChat";
 
@@ -11,8 +11,8 @@ export default function Home() {
       className="min-h-screen p-6 md:p-10"
       style={{ backgroundColor: "var(--bg-page)", color: "var(--text-primary)" }}
     >
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-8 flex items-start justify-between gap-4">
+      <div className="max-w-6xl mx-auto">
+        <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-semibold">
               Trading Intelligence Dashboard
@@ -21,29 +21,18 @@ export default function Home() {
               Alat bantu analisis rule-based, bukan nasihat keuangan.
             </p>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <NewsDrawer />
+            <ThemeToggle />
+          </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-          {/* Kolom utama */}
-          <div>
-            <Watchlist />
-            <StockWatchlist />
-            <section>
-              <PositionTracker />
-            </section>
-          </div>
+        <Watchlist />
+        <StockWatchlist />
 
-          {/* Sidebar berita — sticky, tinggi dibatasi ke viewport, scroll
-              sendiri di dalam sidebar-nya. Ini kuncinya supaya berita
-              sebanyak apapun TIDAK ikut memperpanjang scroll halaman utama */}
-          <aside
-            className="sticky top-6 overflow-y-auto"
-            style={{ maxHeight: "calc(100vh - 3rem)" }}
-          >
-            <NewsFeed />
-          </aside>
-        </div>
+        <section>
+          <PositionTracker />
+        </section>
 
         <footer
           className="mt-8 text-xs pt-4"
