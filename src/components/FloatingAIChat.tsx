@@ -142,22 +142,89 @@ function resolveActiveConfig(settings: Settings): {
 function buildSystemPrompt(context?: ReturnType<typeof useAnalysisContext>["context"]): string {
   const base =
     "Kamu adalah asisten analisis trading untuk dashboard rule-based (bukan machine learning). " +
-    "Jawab singkat, jelas, dalam Bahasa Indonesia. WAJIB selalu ingatkan bahwa ini bukan nasihat " +
-    "keuangan dan bukan jaminan profit — dorong user untuk tetap DYOR (Do Your Own Research) dan " +
-    "pakai manajemen risiko. JANGAN pernah menjanjikan hasil pasti.";
+    "Jawab singkat, jelas, dalam Bahasa Indonesia. Kamu BOLEH dan DIHARAPKAN menjawab pertanyaan " +
+    "soal coin/saham/aset APAPUN pakai pengetahuan umum kamu sendiri, tidak terbatas cuma pada " +
+    "konteks yang diberikan di bawah — konteks itu cuma info TAMBAHAN soal apa yang SEDANG " +
+    "ditampilkan di layar user, bukan pembatas topik obrolan. WAJIB selalu ingatkan bahwa ini bukan " +
+    "nasihat keuangan dan bukan jaminan profit — dorong user untuk tetap DYOR (Do Your Own Research) " +
+    "dan pakai manajemen risiko. JANGAN pernah menjanjikan hasil pasti.";
 
   if (!context) return base;
 
   return `${base}
 
-Konteks analisis yang SEDANG ditampilkan ke user:
-- Symbol: ${context.symbol}
-- Bias/Setup: ${context.bias} (confidence ${context.confidence}%)
-- Entry Zone: ${context.entryLow} - ${context.entryHigh}
-- Stop Loss: ${context.stopLoss}
-- TP1: ${context.tp1}, TP2: ${context.tp2}
+Data rule-based yang tersedia saat ini (dari dashboard, bisa jadi yang lagi tampil di layar ATAU
+yang baru diambil live karena user menyebut symbol ini di chat): symbol ${context.symbol}, bias
+${context.bias} (confidence ${context.confidence}%), entry zone ${context.entryLow}-${context.entryHigh},
+SL ${context.stopLoss}, TP1 ${context.tp1}, TP2 ${context.tp2}. Kalau user tanya soal angka-angka
+symbol ini, jawab pakai data ini. Kalau user tanya soal coin/topik LAIN, tetap jawab pakai
+pengetahuan umum kamu — JANGAN bilang "saya tidak punya info" hanya karena tidak ada di sini.`;
+}
 
-User mungkin bertanya soal angka-angka di atas. Jawab berdasarkan konteks ini kalau relevan.`;
+// Kata umum yang sering ke-deteksi salah sebagai "symbol" — perlu di-skip
+// supaya tidak salah nembak coin yang tidak ada
+const COMMON_WORDS = new Set([
+  "INI", "ITU", "DAN", "YANG", "SAJA", "UNTUK", "DARI", "SOAL", "APA",
+  "KOK", "BOT", "TOLONG", "COBA", "GIMANA", "KENAPA", "BAGAIMANA", "AI",
+  "SAYA", "KAMU", "DIA", "MEREKA", "ADA", "TIDAK", "BISA", "MAU", "SUDAH",
+  "BELUM", "AKAN", "SEDANG", "HARGA", "CHART", "SETUP", "ANALISIS",
+  "ANALISA", "ENTRY", "EXIT", "PROFIT", "LOSS", "TREND", "TP", "SL",
+]);
+
+// Coba tebak nama symbol crypto yang disebut user di pesan chat (misal
+// "analisis HYPE dong" atau "gimana SOLUSDT sekarang" -> "HYPEUSDT",
+// "SOLUSDT"). Ini heuristik sederhana (bukan NLP canggih), jadi bisa
+// meleset untuk kalimat yang aneh, tapi cukup untuk kasus umum.
+function guessSymbolFromText(text: string): string | null {
+  const cleaned = text.toUpperCase().replace(/PERPETUAL|PERP/g, "");
+  const words = cleaned.match(/[A-Z]{2,10}/g) ?? [];
+
+  for (const word of words) {
+    if (COMMON_WORDS.has(word)) continue;
+    // Kalau user sudah sebut lengkap dengan USDT (misal "HYPEUSDT"), pakai
+    // langsung. Kalau cuma nama coin-nya (misal "HYPE"), tambahkan USDT.
+    return word.endsWith("USDT") ? word : `${word}USDT`;
+  }
+  return null;
+}
+
+type LiveContext = {
+  symbol: string;
+  bias: string;
+  confidence: number;
+  entryLow: number;
+  entryHigh: number;
+  stopLoss: number;
+  tp1: number;
+  tp2: number;
+};
+
+// Ambil data setup detection LIVE untuk symbol yang disebut user di chat —
+// dipanggil sebelum kirim ke AI, supaya AI tidak "buta" kalau ditanya soal
+// coin lain di luar yang lagi tampil di dropdown "Analisis Untuk"
+async function fetchLiveContextForSymbol(
+  symbol: string
+): Promise<LiveContext | null> {
+  try {
+    const res = await fetch(`/api/setup?symbol=${symbol}&interval=1h`, {
+      cache: "no-store",
+    });
+    const json = await res.json();
+    if (!res.ok) return null;
+
+    return {
+      symbol,
+      bias: json.bias,
+      confidence: json.confidence,
+      entryLow: json.levels.entryLow,
+      entryHigh: json.levels.entryHigh,
+      stopLoss: json.levels.stopLoss,
+      tp1: json.levels.tp1,
+      tp2: json.levels.tp2,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default function FloatingAIChat() {
@@ -210,6 +277,16 @@ export default function FloatingAIChat() {
     setError("");
 
     try {
+      // Kalau user menyebut symbol lain (misal "HYPEUSDT") yang beda dari
+      // yang lagi ditampilkan di dashboard, coba ambil data live-nya dulu —
+      // supaya AI jawab pakai data asli, bukan cuma pengetahuan umum
+      let effectiveContext = context;
+      const mentionedSymbol = guessSymbolFromText(text);
+      if (mentionedSymbol && mentionedSymbol !== context?.symbol) {
+        const liveData = await fetchLiveContextForSymbol(mentionedSymbol);
+        if (liveData) effectiveContext = liveData;
+      }
+
       const config = resolveActiveConfig(settings);
       const res = await fetch("/api/ai-chat", {
         method: "POST",
@@ -220,7 +297,7 @@ export default function FloatingAIChat() {
           model: config.model,
           baseUrl: config.baseUrl,
           messages: [
-            { role: "system", content: buildSystemPrompt(context) },
+            { role: "system", content: buildSystemPrompt(effectiveContext) },
             ...newMessages,
           ],
         }),
@@ -429,7 +506,7 @@ export default function FloatingAIChat() {
             {messages.length === 0 && (
               <div className="text-base text-center py-8" style={{ color: "var(--text-muted)" }}>
                 {context
-                  ? `Tanya apa saja soal analisis ${context.symbol} yang lagi ditampilkan.`
+                  ? `Lagi lihat analisis ${context.symbol}. Tanya soal itu, atau coin/topik lain juga boleh.`
                   : "Mulai obrolan — tanya apa saja soal trading."}
               </div>
             )}
