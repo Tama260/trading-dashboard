@@ -36,11 +36,13 @@ export default function NewsDrawer() {
             onClick={() => setOpen(false)}
           />
 
+          {/* Panel slide-over dari KIRI — supaya tidak bentrok dengan
+              AI Chat bubble yang ngambang di kanan bawah */}
           <div
-            className="fixed top-0 right-0 h-full w-full sm:w-[480px] z-50 shadow-2xl flex flex-col"
+            className="fixed top-0 left-0 h-full w-full sm:w-[480px] z-50 shadow-2xl flex flex-col"
             style={{
               backgroundColor: "var(--bg-page)",
-              borderLeft: "1px solid var(--border-card)",
+              borderRight: "1px solid var(--border-card)",
             }}
           >
             <div

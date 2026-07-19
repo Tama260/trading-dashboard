@@ -5,20 +5,102 @@ import { useAnalysisContext } from "@/lib/analysisContext";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
-type Settings = {
+// Preset provider — user tinggal PILIH, tidak perlu tahu/ketik Base URL
+// atau nama model secara manual. Cuma "Custom" yang butuh isi manual,
+// buat provider lain yang belum ada di daftar ini.
+type Preset = {
+  id: string;
+  label: string;
   provider: "anthropic" | "openai";
-  apiKey: string;
-  model: string;
   baseUrl: string;
+  model: string;
+  free: boolean;
+  signupUrl: string;
+};
+
+const PRESETS: Preset[] = [
+  {
+    id: "groq",
+    label: "Groq",
+    provider: "openai",
+    baseUrl: "https://api.groq.com/openai/v1",
+    model: "llama-3.3-70b-versatile",
+    free: true,
+    signupUrl: "console.groq.com",
+  },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    provider: "openai",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    model: "gemini-2.0-flash",
+    free: true,
+    signupUrl: "aistudio.google.com",
+  },
+  {
+    id: "cerebras",
+    label: "Cerebras",
+    provider: "openai",
+    baseUrl: "https://api.cerebras.ai/v1",
+    model: "llama-3.3-70b",
+    free: true,
+    signupUrl: "cloud.cerebras.ai",
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter (model gratis terbatas)",
+    provider: "openai",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    free: true,
+    signupUrl: "openrouter.ai",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic (Claude) — berbayar",
+    provider: "anthropic",
+    baseUrl: "",
+    model: "claude-3-5-haiku-20241022",
+    free: false,
+    signupUrl: "console.anthropic.com",
+  },
+  {
+    id: "openai",
+    label: "OpenAI — berbayar",
+    provider: "openai",
+    baseUrl: "",
+    model: "gpt-4o-mini",
+    free: false,
+    signupUrl: "platform.openai.com",
+  },
+  {
+    id: "custom",
+    label: "Custom (isi manual)",
+    provider: "openai",
+    baseUrl: "",
+    model: "",
+    free: false,
+    signupUrl: "",
+  },
+];
+
+type Settings = {
+  presetId: string;
+  apiKey: string;
+  // Cuma dipakai kalau presetId === "custom"
+  customProvider: "anthropic" | "openai";
+  customBaseUrl: string;
+  customModel: string;
 };
 
 const STORAGE_KEY = "trading-dashboard-ai-settings";
 
 const DEFAULT_SETTINGS: Settings = {
-  provider: "anthropic",
+  presetId: "groq",
   apiKey: "",
-  model: "claude-3-5-haiku-20241022",
-  baseUrl: "",
+  customProvider: "openai",
+  customBaseUrl: "",
+  customModel: "",
 };
 
 function loadSettings(): Settings {
@@ -37,6 +119,24 @@ function saveSettings(settings: Settings) {
   } catch {
     // localStorage penuh/diblokir — tidak fatal
   }
+}
+
+// Gabungkan preset terpilih jadi 1 objek {provider, baseUrl, model} yang
+// siap dikirim ke server — baik dari preset siap pakai maupun custom manual
+function resolveActiveConfig(settings: Settings): {
+  provider: "anthropic" | "openai";
+  baseUrl: string;
+  model: string;
+} {
+  if (settings.presetId === "custom") {
+    return {
+      provider: settings.customProvider,
+      baseUrl: settings.customBaseUrl,
+      model: settings.customModel,
+    };
+  }
+  const preset = PRESETS.find((p) => p.id === settings.presetId) ?? PRESETS[0];
+  return { provider: preset.provider, baseUrl: preset.baseUrl, model: preset.model };
 }
 
 function buildSystemPrompt(context?: ReturnType<typeof useAnalysisContext>["context"]): string {
@@ -89,6 +189,9 @@ export default function FloatingAIChat() {
     saveSettings(updated);
   }
 
+  const activePreset = PRESETS.find((p) => p.id === settings.presetId) ?? PRESETS[0];
+  const isCustom = settings.presetId === "custom";
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
@@ -107,14 +210,15 @@ export default function FloatingAIChat() {
     setError("");
 
     try {
+      const config = resolveActiveConfig(settings);
       const res = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: settings.provider,
+          provider: config.provider,
           apiKey: settings.apiKey,
-          model: settings.model,
-          baseUrl: settings.baseUrl,
+          model: config.model,
+          baseUrl: config.baseUrl,
           messages: [
             { role: "system", content: buildSystemPrompt(context) },
             ...newMessages,
@@ -137,14 +241,14 @@ export default function FloatingAIChat() {
 
   return (
     <>
-      {/* Panel chat — cuma muncul kalau isOpen */}
+      {/* Panel chat — diperbesar (lebar & tinggi) supaya lebih nyaman dibaca */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-[92vw] max-w-sm rounded-2xl border shadow-2xl flex flex-col overflow-hidden"
+          className="fixed bottom-24 right-6 z-50 w-[94vw] max-w-lg rounded-2xl border shadow-2xl flex flex-col overflow-hidden"
           style={{
             backgroundColor: "var(--bg-card)",
             borderColor: "var(--border-card)",
-            maxHeight: "min(70vh, 600px)",
+            maxHeight: "min(80vh, 760px)",
           }}
         >
           {/* Header */}
@@ -153,10 +257,10 @@ export default function FloatingAIChat() {
             style={{ borderColor: "var(--border-card)" }}
           >
             <div>
-              <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              <div className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
                 AI Chat {context ? `— ${context.symbol}` : ""}
               </div>
-              <div className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+              <div className="text-xs" style={{ color: "var(--text-faint)" }}>
                 BYOK — key tersimpan di browser kamu
               </div>
             </div>
@@ -164,14 +268,14 @@ export default function FloatingAIChat() {
               <button
                 onClick={() => setShowSettings((v) => !v)}
                 title="Pengaturan"
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)] text-sm"
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)] text-lg"
               >
                 ⚙
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 title="Tutup"
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)] text-sm"
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[var(--bg-card-secondary)] text-lg"
               >
                 ✕
               </button>
@@ -181,89 +285,135 @@ export default function FloatingAIChat() {
           {showSettings && (
             <div
               className="p-4 border-b space-y-3 flex-shrink-0 overflow-y-auto"
-              style={{ borderColor: "var(--border-card)", backgroundColor: "var(--bg-card-secondary)", maxHeight: "50vh" }}
+              style={{ borderColor: "var(--border-card)", backgroundColor: "var(--bg-card-secondary)", maxHeight: "55vh" }}
             >
-              <div
-                className="text-[11px] p-2 rounded"
-                style={{
-                  backgroundColor: "var(--badge-green-bg)",
-                  color: "var(--badge-green-text)",
-                }}
-              >
-                💡 Mau yang beneran gratis (tanpa kartu kredit)? Pilih{" "}
-                <strong>OpenAI-compatible</strong>, Base URL{" "}
-                <code>https://api.groq.com/openai/v1</code>, model{" "}
-                <code>llama-3.3-70b-versatile</code>. Daftar key gratis di{" "}
-                <strong>console.groq.com</strong>.
-              </div>
               <div>
-                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                <label className="text-sm block mb-1.5" style={{ color: "var(--text-muted)" }}>
                   Provider
                 </label>
                 <select
-                  value={settings.provider}
-                  onChange={(e) =>
-                    updateSettings({ provider: e.target.value as "anthropic" | "openai" })
-                  }
-                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  value={settings.presetId}
+                  onChange={(e) => updateSettings({ presetId: e.target.value })}
+                  className="w-full border rounded-md px-3 py-2 text-base"
                   style={{
                     backgroundColor: "var(--bg-card)",
                     borderColor: "var(--border-card-strong)",
                     color: "var(--text-primary)",
                   }}
                 >
-                  <option value="anthropic">Anthropic (Claude) — berbayar</option>
-                  <option value="openai">OpenAI-compatible (OpenAI/DeepSeek berbayar, Groq gratis)</option>
+                  <optgroup label="Gratis, tanpa kartu kredit">
+                    {PRESETS.filter((p) => p.free).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Berbayar">
+                    {PRESETS.filter((p) => !p.free && p.id !== "custom").map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Lainnya">
+                    <option value="custom">Custom (isi manual)</option>
+                  </optgroup>
                 </select>
               </div>
-              <div>
-                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                  Model
-                </label>
-                <input
-                  value={settings.model}
-                  onChange={(e) => updateSettings({ model: e.target.value })}
-                  placeholder={
-                    settings.provider === "anthropic"
-                      ? "claude-3-5-haiku-20241022"
-                      : "llama-3.3-70b-versatile (Groq, gratis)"
-                  }
-                  className="w-full border rounded px-2 py-1.5 text-sm"
+
+              {!isCustom && activePreset.free && (
+                <div
+                  className="text-xs p-2.5 rounded"
                   style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border-card-strong)",
-                    color: "var(--text-primary)",
+                    backgroundColor: "var(--badge-green-bg)",
+                    color: "var(--badge-green-text)",
                   }}
-                />
-              </div>
-              {settings.provider === "openai" && (
-                <div>
-                  <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                    Base URL (kosongkan untuk OpenAI resmi)
-                  </label>
-                  <input
-                    value={settings.baseUrl}
-                    onChange={(e) => updateSettings({ baseUrl: e.target.value })}
-                    placeholder="https://api.groq.com/openai/v1 (gratis)"
-                    className="w-full border rounded px-2 py-1.5 text-sm"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border-card-strong)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
+                >
+                  💡 Gratis, tanpa kartu kredit. Daftar API key di{" "}
+                  <strong>{activePreset.signupUrl}</strong>, lalu tempel di
+                  bawah. Model dan alamat server sudah otomatis diatur.
                 </div>
               )}
+              {!isCustom && !activePreset.free && (
+                <div
+                  className="text-xs p-2.5 rounded"
+                  style={{
+                    backgroundColor: "var(--badge-yellow-bg)",
+                    color: "var(--badge-yellow-text)",
+                  }}
+                >
+                  ⚠ Provider ini berbayar (kadang ada kredit trial di awal).
+                  Ambil key di <strong>{activePreset.signupUrl}</strong>.
+                </div>
+              )}
+
+              {isCustom && (
+                <>
+                  <div>
+                    <label className="text-sm block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Format API
+                    </label>
+                    <select
+                      value={settings.customProvider}
+                      onChange={(e) =>
+                        updateSettings({ customProvider: e.target.value as "anthropic" | "openai" })
+                      }
+                      className="w-full border rounded-md px-3 py-2 text-base"
+                      style={{
+                        backgroundColor: "var(--bg-card)",
+                        borderColor: "var(--border-card-strong)",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      <option value="openai">OpenAI-compatible</option>
+                      <option value="anthropic">Anthropic-compatible</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Base URL
+                    </label>
+                    <input
+                      value={settings.customBaseUrl}
+                      onChange={(e) => updateSettings({ customBaseUrl: e.target.value })}
+                      placeholder="https://api.contoh.com/v1"
+                      className="w-full border rounded-md px-3 py-2 text-base"
+                      style={{
+                        backgroundColor: "var(--bg-card)",
+                        borderColor: "var(--border-card-strong)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                      Model
+                    </label>
+                    <input
+                      value={settings.customModel}
+                      onChange={(e) => updateSettings({ customModel: e.target.value })}
+                      placeholder="nama-model"
+                      className="w-full border rounded-md px-3 py-2 text-base"
+                      style={{
+                        backgroundColor: "var(--bg-card)",
+                        borderColor: "var(--border-card-strong)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
-                <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                <label className="text-sm block mb-1.5" style={{ color: "var(--text-muted)" }}>
                   API Key
                 </label>
                 <input
                   type="password"
                   value={settings.apiKey}
                   onChange={(e) => updateSettings({ apiKey: e.target.value })}
-                  placeholder="sk-..."
-                  className="w-full border rounded px-2 py-1.5 text-sm"
+                  placeholder="Tempel API key kamu di sini"
+                  className="w-full border rounded-md px-3 py-2 text-base"
                   style={{
                     backgroundColor: "var(--bg-card)",
                     borderColor: "var(--border-card-strong)",
@@ -275,9 +425,9 @@ export default function FloatingAIChat() {
           )}
 
           {/* Messages */}
-          <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3 min-h-[200px]">
+          <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3 min-h-[240px]">
             {messages.length === 0 && (
-              <div className="text-sm text-center py-8" style={{ color: "var(--text-muted)" }}>
+              <div className="text-base text-center py-8" style={{ color: "var(--text-muted)" }}>
                 {context
                   ? `Tanya apa saja soal analisis ${context.symbol} yang lagi ditampilkan.`
                   : "Mulai obrolan — tanya apa saja soal trading."}
@@ -286,7 +436,7 @@ export default function FloatingAIChat() {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className="max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap"
+                  className="max-w-[85%] rounded-lg px-4 py-2.5 text-base whitespace-pre-wrap leading-relaxed"
                   style={
                     m.role === "user"
                       ? { backgroundColor: "var(--badge-sky-bg)", color: "var(--badge-sky-text)" }
@@ -298,14 +448,14 @@ export default function FloatingAIChat() {
               </div>
             ))}
             {loading && (
-              <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+              <div className="text-base" style={{ color: "var(--text-muted)" }}>
                 Mengetik...
               </div>
             )}
           </div>
 
           {error && (
-            <div className="text-xs px-4 pb-2 flex-shrink-0" style={{ color: "var(--badge-red-text)" }}>
+            <div className="text-sm px-4 pb-2 flex-shrink-0" style={{ color: "var(--badge-red-text)" }}>
               {error}
             </div>
           )}
@@ -315,7 +465,7 @@ export default function FloatingAIChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Tanya soal setup ini..."
-              className="flex-1 border rounded-md px-3 py-2 text-sm"
+              className="flex-1 border rounded-md px-4 py-2.5 text-base"
               style={{
                 backgroundColor: "var(--bg-card-secondary)",
                 borderColor: "var(--border-card-strong)",
@@ -325,7 +475,7 @@ export default function FloatingAIChat() {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-4 py-2 rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
+              className="text-base px-5 py-2.5 rounded-md bg-sky-600 text-white hover:bg-sky-500 transition-colors disabled:opacity-50"
             >
               Kirim
             </button>
