@@ -1,7 +1,8 @@
 import Watchlist from "@/components/Watchlist";
 import StockWatchlist from "@/components/StockWatchlist";
+import ForexWatchlist from "@/components/ForexWatchlist";
 import PositionTracker from "@/components/PositionTracker";
-import NewsDrawer from "@/components/NewsDrawer";
+import FloatingNews from "@/components/FloatingNews";
 import ThemeToggle from "@/components/ThemeToggle";
 import FloatingAIChat from "@/components/FloatingAIChat";
 
@@ -22,13 +23,13 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <NewsDrawer />
             <ThemeToggle />
           </div>
         </header>
 
         <Watchlist />
         <StockWatchlist />
+        <ForexWatchlist />
 
         <section>
           <PositionTracker />
@@ -43,6 +44,7 @@ export default function Home() {
         </footer>
       </div>
 
+      <FloatingNews />
       <FloatingAIChat />
     </main>
   );

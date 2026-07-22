@@ -2,15 +2,31 @@
 // server-side (bukan dari browser), dengan fallback 2 endpoint publik.
 // Dipakai oleh beberapa API route (prices, klines, market-intel) supaya
 // logikanya tidak duplikat di banyak tempat (prinsip DRY).
+//
+// Mendukung 2 jenis market: "spot" (default) dan "futures" (perpetual
+// USDT-M). Field response Binance Futures kebetulan SAMA PERSIS namanya
+// dengan Spot (lastPrice, priceChangePercent, dst), jadi logic parsing-nya
+// bisa dipakai ulang — cuma base URL-nya yang beda.
 
-const BASE_URLS = [
+export type Market = "spot" | "futures";
+
+const SPOT_BASE_URLS = [
   "https://api.binance.com/api/v3",
   "https://data-api.binance.vision/api/v3",
 ];
 
-async function fetchWithFallback(path: string): Promise<unknown> {
+const FUTURES_BASE_URLS = ["https://fapi.binance.com/fapi/v1"];
+
+function getBaseUrls(market: Market): string[] {
+  return market === "futures" ? FUTURES_BASE_URLS : SPOT_BASE_URLS;
+}
+
+async function fetchWithFallback(
+  baseUrls: string[],
+  path: string
+): Promise<unknown> {
   let lastStatus = 0;
-  for (const base of BASE_URLS) {
+  for (const base of baseUrls) {
     try {
       const res = await fetch(`${base}${path}`, { cache: "no-store" });
       if (res.ok) return await res.json();
@@ -38,15 +54,19 @@ export type Ticker24hr = {
   low: number;
 };
 
-// Bitget punya API publik gratis sendiri (tanpa API key), format response
-// beda dari Binance. Dipakai sebagai fallback TERAKHIR — kalau semua
-// endpoint Binance gagal (misal token belum listing di Binance seperti
-// kasus HYPE), coba cari di Bitget dulu sebelum benar-benar menyerah.
-async function fetchTicker24hrFromBitget(symbol: string): Promise<Ticker24hr> {
-  const res = await fetch(
-    `https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol.toUpperCase()}`,
-    { cache: "no-store" }
-  );
+// Bitget punya API publik gratis sendiri (tanpa API key), untuk spot MAUPUN
+// futures (mix). Dipakai sebagai fallback TERAKHIR — kalau semua endpoint
+// Binance gagal (misal token belum listing di Binance seperti kasus HYPE).
+async function fetchTicker24hrFromBitget(
+  symbol: string,
+  market: Market
+): Promise<Ticker24hr> {
+  const url =
+    market === "futures"
+      ? `https://api.bitget.com/api/v2/mix/market/ticker?symbol=${symbol.toUpperCase()}&productType=USDT-FUTURES`
+      : `https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol.toUpperCase()}`;
+
+  const res = await fetch(url, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error(`Bitget merespons status ${res.status}`);
@@ -59,17 +79,25 @@ async function fetchTicker24hrFromBitget(symbol: string): Promise<Ticker24hr> {
     throw new Error("Symbol tidak ditemukan di Binance maupun Bitget");
   }
 
+  // Nama field spot ("changeUtc24h") dan mix/futures ("change24h") sedikit
+  // beda di Bitget, jadi kita coba dua-duanya
+  const changeRaw = raw.change24h ?? raw.changeUtc24h;
+
   return {
     price: parseFloat(raw.lastPr),
-    changePercent: parseFloat(raw.changeUtc24h) * 100,
+    changePercent: parseFloat(changeRaw) * 100,
     high: parseFloat(raw.high24h),
     low: parseFloat(raw.low24h),
   };
 }
 
-export async function fetchTicker24hr(symbol: string): Promise<Ticker24hr> {
+export async function fetchTicker24hr(
+  symbol: string,
+  market: Market = "spot"
+): Promise<Ticker24hr> {
   try {
     const raw = (await fetchWithFallback(
+      getBaseUrls(market),
       `/ticker/24hr?symbol=${symbol.toUpperCase()}`
     )) as {
       lastPrice: string;
@@ -86,7 +114,7 @@ export async function fetchTicker24hr(symbol: string): Promise<Ticker24hr> {
   } catch (binanceError) {
     // Semua endpoint Binance gagal — coba Bitget sebelum menyerah total
     try {
-      return await fetchTicker24hrFromBitget(symbol);
+      return await fetchTicker24hrFromBitget(symbol, market);
     } catch {
       // Bitget juga gagal — lempar error asli dari Binance, itu lebih
       // informatif (pesan "symbol tidak ditemukan" dari fetchWithFallback)
@@ -104,6 +132,16 @@ export type Kline = {
   volume: number;
 };
 
+const GRANULARITY_MAP: Record<string, string> = {
+  "1m": "1min",
+  "5m": "5min",
+  "15m": "15min",
+  "30m": "30min",
+  "1h": "1h",
+  "4h": "4h",
+  "1d": "1day",
+};
+
 // Ambil candlestick dari Bitget sebagai fallback — dipakai kalau token
 // tidak ada di Binance (misal HYPE). Format response Bitget beda dari
 // Binance, dan urutan datanya perlu dibalik (Bitget kembalikan terbaru
@@ -111,23 +149,17 @@ export type Kline = {
 async function fetchKlinesFromBitget(
   symbol: string,
   interval: string,
-  limit: number
+  limit: number,
+  market: Market
 ): Promise<Kline[]> {
-  const granularityMap: Record<string, string> = {
-    "1m": "1min",
-    "5m": "5min",
-    "15m": "15min",
-    "30m": "30min",
-    "1h": "1h",
-    "4h": "4h",
-    "1d": "1day",
-  };
-  const granularity = granularityMap[interval] || "1h";
+  const granularity = GRANULARITY_MAP[interval] || "1h";
 
-  const res = await fetch(
-    `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&limit=${limit}`,
-    { cache: "no-store" }
-  );
+  const url =
+    market === "futures"
+      ? `https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&productType=USDT-FUTURES&limit=${limit}`
+      : `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&limit=${limit}`;
+
+  const res = await fetch(url, { cache: "no-store" });
 
   if (!res.ok) {
     throw new Error(`Bitget merespons status ${res.status}`);
@@ -155,10 +187,12 @@ async function fetchKlinesFromBitget(
 export async function fetchKlines(
   symbol: string,
   interval = "1h",
-  limit = 200
+  limit = 200,
+  market: Market = "spot"
 ): Promise<Kline[]> {
   try {
     const raw = (await fetchWithFallback(
+      getBaseUrls(market),
       `/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`
     )) as unknown[][];
 
@@ -172,7 +206,7 @@ export async function fetchKlines(
     }));
   } catch (binanceError) {
     try {
-      return await fetchKlinesFromBitget(symbol, interval, limit);
+      return await fetchKlinesFromBitget(symbol, interval, limit, market);
     } catch {
       throw binanceError;
     }

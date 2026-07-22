@@ -7,7 +7,7 @@ import { STOCK_CATEGORIES } from "@/lib/marketCategories";
 
 type StockItem = {
   symbol: string;
-  market: "us" | "idx" | "gold" | "forex";
+  market: "us" | "idx" | "gold";
   label: string;
 };
 
@@ -17,8 +17,6 @@ const DEFAULT_ITEMS: StockItem[] = [
   { symbol: "AAPL", market: "us", label: "AAPL" },
   { symbol: "TLKM", market: "idx", label: "TLKM" },
   { symbol: "", market: "gold", label: "Emas (XAU/USD)" },
-  { symbol: "EUR/USD", market: "forex", label: "EUR/USD" },
-  { symbol: "USD/IDR", market: "forex", label: "USD/IDR" },
 ];
 
 function loadItems(): StockItem[] {
@@ -48,11 +46,8 @@ export default function StockWatchlist() {
   const [hydrated, setHydrated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSymbol, setNewSymbol] = useState("");
-  const [newMarket, setNewMarket] = useState<"us" | "idx" | "forex">("us");
+  const [newMarket, setNewMarket] = useState<"us" | "idx">("us");
 
-  // Sama seperti crypto: dropdown "Watchlist Saya" ATAU salah satu kategori
-  // trending. Ini yang menentukan apa yang ditampilkan di grid utama DAN
-  // di dropdown chart di bawahnya.
   const [viewMode, setViewMode] = useState(MY_WATCHLIST_VALUE);
   const [trendingItems, setTrendingItems] = useState<StockItem[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
@@ -110,12 +105,8 @@ export default function StockWatchlist() {
 
   function addItem(e: React.FormEvent) {
     e.preventDefault();
-    let clean = newSymbol.trim().toUpperCase();
+    const clean = newSymbol.trim().toUpperCase();
     if (!clean) return;
-
-    if (newMarket === "forex" && !clean.includes("/") && clean.length === 6) {
-      clean = `${clean.slice(0, 3)}/${clean.slice(3)}`;
-    }
 
     const updated = [...items, { symbol: clean, market: newMarket, label: clean }];
     setItems(updated);
@@ -124,7 +115,7 @@ export default function StockWatchlist() {
     setShowAddForm(false);
   }
 
-  function addItemDirect(symbol: string, market: "us" | "idx" | "forex" | "gold") {
+  function addItemDirect(symbol: string, market: "us" | "idx" | "gold") {
     if (items.some((i) => i.symbol === symbol && i.market === market)) return;
     const updated = [...items, { symbol, market, label: symbol }];
     setItems(updated);
@@ -159,7 +150,7 @@ export default function StockWatchlist() {
         <div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
-              Saham, Emas & Forex
+              Saham & Emas
             </span>
             <select
               value={viewMode}
@@ -175,8 +166,8 @@ export default function StockWatchlist() {
             </select>
           </div>
           <p className="text-[11px] text-[var(--text-faint)] mt-1">
-            Butuh API key gratis dari twelvedata.com untuk saham AS, emas &
-            forex — lihat catatan di bawah
+            Butuh API key gratis dari twelvedata.com untuk saham AS & emas —
+            lihat catatan di bawah
           </p>
         </div>
         <button
@@ -195,21 +186,16 @@ export default function StockWatchlist() {
           <input
             value={newSymbol}
             onChange={(e) => setNewSymbol(e.target.value)}
-            placeholder={
-              newMarket === "forex" ? "Contoh: USDIDR atau GBP/USD" : "Contoh: TSLA atau BBCA"
-            }
+            placeholder="Contoh: TSLA atau BBCA"
             className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-3 py-1.5 text-sm text-[var(--text-primary)]"
           />
           <select
             value={newMarket}
-            onChange={(e) =>
-              setNewMarket(e.target.value as "us" | "idx" | "forex")
-            }
+            onChange={(e) => setNewMarket(e.target.value as "us" | "idx")}
             className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded px-3 py-1.5 text-sm text-[var(--text-primary)]"
           >
             <option value="us">Saham AS</option>
             <option value="idx">Saham IDX</option>
-            <option value="forex">Forex</option>
           </select>
           <button
             type="submit"
@@ -262,9 +248,7 @@ export default function StockWatchlist() {
         Sumber data: Yahoo Finance (utama, tidak resmi tapi limit longgar) →
         Finnhub (cadangan saham AS, kalau API key diisi) → Twelve Data
         (cadangan terakhir). Kalau semua gagal, error akan ditampilkan jelas
-        di kartu. Mau cek stabilitas USDT? Tambah pasangan &quot;USDIDR&quot;
-        di sini untuk rujukan kurs asli, lalu bandingkan manual dengan harga
-        USDT di watchlist crypto.
+        di kartu.
       </p>
 
       <StockAnalysis items={displayedItems} />

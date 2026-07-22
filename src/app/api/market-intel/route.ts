@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchKlines } from "@/lib/binance";
+import { fetchKlines, Market } from "@/lib/binance";
 import { atr, detectRegime, volatilityLevel } from "@/lib/indicators";
 
 type FearGreed = { value: number; label: string };
@@ -21,10 +21,11 @@ async function fetchFearGreed(): Promise<FearGreed> {
 
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol") || "BTCUSDT";
+  const market = (request.nextUrl.searchParams.get("market") as Market) || "spot";
 
   try {
     const [klines, sentiment] = await Promise.all([
-      fetchKlines(symbol, "1h", 100),
+      fetchKlines(symbol, "1h", 100, market),
       // Sentiment bersifat opsional — kalau gagal, jangan gagalkan
       // seluruh response, cukup kirim null untuk bagian ini saja.
       fetchFearGreed().catch(() => null),

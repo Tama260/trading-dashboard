@@ -50,6 +50,7 @@ export default function Watchlist() {
   // Dropdown: "Watchlist Saya" ATAU salah satu kategori. Ini yang
   // menentukan apa yang ditampilkan di grid utama di bawah.
   const [viewMode, setViewMode] = useState(MY_WATCHLIST_VALUE);
+  const [marketType, setMarketType] = useState<"spot" | "futures">("spot");
   const [trendingSymbols, setTrendingSymbols] = useState<string[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [trendingError, setTrendingError] = useState("");
@@ -171,6 +172,40 @@ export default function Watchlist() {
               </option>
             ))}
           </select>
+          <div
+            className="flex items-center rounded-md border overflow-hidden text-xs"
+            style={{ borderColor: "var(--border-card-strong)" }}
+          >
+            <button
+              onClick={() => setMarketType("spot")}
+              className="px-2.5 py-1.5 transition-colors"
+              style={{
+                backgroundColor:
+                  marketType === "spot" ? "var(--badge-sky-bg)" : "transparent",
+                color:
+                  marketType === "spot"
+                    ? "var(--badge-sky-text)"
+                    : "var(--text-muted)",
+              }}
+            >
+              Spot
+            </button>
+            <button
+              onClick={() => setMarketType("futures")}
+              className="px-2.5 py-1.5 transition-colors"
+              style={{
+                backgroundColor:
+                  marketType === "futures" ? "var(--badge-sky-bg)" : "transparent",
+                color:
+                  marketType === "futures"
+                    ? "var(--badge-sky-text)"
+                    : "var(--text-muted)",
+              }}
+              title="Perpetual futures (USDT-M)"
+            >
+              Perpetual
+            </button>
+          </div>
         </div>
         <button
           onClick={() => setShowAddForm((v) => !v)}
@@ -223,8 +258,9 @@ export default function Watchlist() {
 
         {displayedSymbols.map((s) => (
           <LivePrice
-            key={s}
+            key={`${s}-${marketType}`}
             symbol={s.toLowerCase()}
+            market={marketType}
             onRemove={isMyWatchlist ? () => removeSymbol(s) : undefined}
             onAdd={
               !isMyWatchlist && !symbols.includes(s)

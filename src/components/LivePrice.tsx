@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type LivePriceProps = {
   symbol: string; // contoh: "btcusdt"
+  market?: "spot" | "futures"; // default "spot"
   onRemove?: () => void; // kalau diisi, muncul tombol × (hapus dari watchlist)
   onAdd?: () => void; // kalau diisi, muncul tombol + (tambah ke watchlist)
 };
@@ -21,7 +22,12 @@ const POLL_INTERVAL_MS = 3000;
 // Ia bertanya ke "/api/prices" (server milik kita sendiri di Next.js),
 // dan server itu yang meneruskan ke Binance. Ini menghindari blokir ISP
 // yang berlaku di level browser/perangkat pengguna.
-export default function LivePrice({ symbol, onRemove, onAdd }: LivePriceProps) {
+export default function LivePrice({
+  symbol,
+  market = "spot",
+  onRemove,
+  onAdd,
+}: LivePriceProps) {
   const [data, setData] = useState<TickerData | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "error">(
     "connecting"
@@ -34,7 +40,7 @@ export default function LivePrice({ symbol, onRemove, onAdd }: LivePriceProps) {
 
     async function fetchPrice() {
       try {
-        const res = await fetch(`/api/prices?symbol=${symbol}`, {
+        const res = await fetch(`/api/prices?symbol=${symbol}&market=${market}`, {
           cache: "no-store",
         });
         const json = await res.json();
@@ -68,16 +74,23 @@ export default function LivePrice({ symbol, onRemove, onAdd }: LivePriceProps) {
       cancelled = true;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [symbol]);
+  }, [symbol, market]);
 
   const isUp = data ? parseFloat(data.changePercent) >= 0 : true;
 
   return (
     <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-[var(--text-tertiary)] uppercase tracking-wide">
-          {symbol.replace("usdt", "").toUpperCase()} / USDT
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[var(--text-tertiary)] uppercase tracking-wide">
+            {symbol.replace("usdt", "").toUpperCase()} / USDT
+          </span>
+          {market === "futures" && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)]">
+              PERP
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           <span
             className={`text-xs px-2 py-0.5 rounded-full ${
