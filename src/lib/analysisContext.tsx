@@ -1,9 +1,15 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+
+export type AssetCategory = "crypto" | "saham" | "forex" | "emas";
 
 export type AnalysisContext = {
   symbol: string;
+  // Label ramah-manusia soal sumber data spesifiknya, misal "Perpetual",
+  // "Spot", "Saham IDX", "Saham AS", "Forex", "Emas" — supaya AI bisa
+  // bilang "BTCUSDT (Perpetual)" bukan cuma "BTCUSDT" polos.
+  marketLabel: string;
   bias: string;
   confidence: number;
   entryLow: number;
@@ -13,23 +19,38 @@ export type AnalysisContext = {
   tp2: number;
 };
 
+type ContextMap = Partial<Record<AssetCategory, AnalysisContext>>;
+
 type ContextValue = {
-  context: AnalysisContext | undefined;
-  setContext: (ctx: AnalysisContext | undefined) => void;
+  contexts: ContextMap;
+  setContext: (category: AssetCategory, ctx: AnalysisContext | undefined) => void;
 };
 
 const AnalysisContextCtx = createContext<ContextValue | null>(null);
 
-// Provider ini membungkus seluruh halaman. TradeSetupPanel "mendorong"
-// context analisis terbaru ke sini setiap kali data setup berubah, dan
-// FloatingAIChat (yang posisinya global, bukan nempel di panel manapun)
-// membaca context ini supaya tetap tahu "lagi analisis symbol apa" tanpa
-// perlu prop-drilling lewat banyak level komponen.
+// Provider ini membungkus seluruh halaman. Setiap panel setup-detection
+// (crypto/saham/forex) "mendorong" context analisisnya SENDIRI ke sini
+// setiap kali data berubah — key-nya per kategori aset, BUKAN satu slot
+// global — supaya kalau user lagi buka watchlist Perpetual, Saham, dan
+// Forex sekaligus di halaman yang sama, FloatingAIChat tetap tahu ketiganya
+// tanpa yang satu menimpa yang lain.
 export function AnalysisContextProvider({ children }: { children: ReactNode }) {
-  const [context, setContext] = useState<AnalysisContext | undefined>(undefined);
+  const [contexts, setContexts] = useState<ContextMap>({});
+
+  // WAJIB useCallback dengan deps kosong — setContexts (setter dari useState)
+  // sudah stabil dari React sendiri, jadi setContext ini juga jadi stabil
+  // lintas render. Ini penting karena dipakai di dependency array useEffect
+  // di TradeSetupPanel: kalau referensinya berubah tiap render, effect itu
+  // akan terus-menerus dianggap "berubah" dan jalan lagi tanpa henti.
+  const setContext = useCallback(
+    (category: AssetCategory, ctx: AnalysisContext | undefined) => {
+      setContexts((prev) => ({ ...prev, [category]: ctx }));
+    },
+    []
+  );
 
   return (
-    <AnalysisContextCtx.Provider value={{ context, setContext }}>
+    <AnalysisContextCtx.Provider value={{ contexts, setContext }}>
       {children}
     </AnalysisContextCtx.Provider>
   );

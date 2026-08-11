@@ -85,6 +85,7 @@ export type StockKline = {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 };
 
 // Data candlestick historis. Twelve Data format interval: "1day", "1h", dst
@@ -124,6 +125,7 @@ export async function fetchStockTimeSeries(
       high: string;
       low: string;
       close: string;
+      volume?: string;
     }[];
 
     // Twelve Data mengembalikan data dari yang TERBARU duluan — balik
@@ -135,6 +137,7 @@ export async function fetchStockTimeSeries(
         high: parseFloat(v.high),
         low: parseFloat(v.low),
         close: parseFloat(v.close),
+        volume: v.volume ? parseFloat(v.volume) : 0,
       }))
       .reverse();
   });

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import DrawableChart from "./DrawableChart";
+import TradeSetupPanel from "./TradeSetupPanel";
+import { AssetCategory } from "@/lib/analysisContext";
 
 type StockItem = {
   symbol: string;
@@ -10,37 +11,40 @@ type StockItem = {
 };
 
 const MARKET_LABEL: Record<string, string> = {
-  us: "US",
-  idx: "IDX",
-  forex: "FX",
+  us: "Saham AS",
+  idx: "Saham IDX",
+  forex: "Forex",
+  gold: "Emas",
 };
 
-export default function StockAnalysis({ items }: { items: StockItem[] }) {
-  // Chart cuma masuk akal untuk saham (US/IDX), emas dilewati karena
-  // Twelve Data time_series untuk komoditas butuh pola query sedikit beda
-  // — disederhanakan dulu, bisa ditambah nanti kalau perlu
-  const chartable = items.filter((i) => i.market !== "gold");
+// Kategori context AI per jenis market — saham AS & IDX sama-sama masuk
+// "saham", forex & emas dipisah karena keduanya dihitung lewat pair-style
+// Yahoo (XXX=X) dan sering dianalisis bareng-bareng dalam satu sesi.
+function categoryFor(market: StockItem["market"]): AssetCategory {
+  if (market === "us" || market === "idx") return "saham";
+  if (market === "gold") return "emas";
+  return "forex";
+}
 
+export default function StockAnalysis({ items }: { items: StockItem[] }) {
   const [selectedKey, setSelectedKey] = useState(
-    chartable[0] ? `${chartable[0].symbol}|${chartable[0].market}` : ""
+    items[0] ? `${items[0].symbol}|${items[0].market}` : ""
   );
 
   const effectiveKey =
-    chartable.some((i) => `${i.symbol}|${i.market}` === selectedKey)
+    items.some((i) => `${i.symbol}|${i.market}` === selectedKey)
       ? selectedKey
-      : chartable[0]
-      ? `${chartable[0].symbol}|${chartable[0].market}`
+      : items[0]
+      ? `${items[0].symbol}|${items[0].market}`
       : "";
 
-  const selected = chartable.find(
-    (i) => `${i.symbol}|${i.market}` === effectiveKey
-  );
+  const selected = items.find((i) => `${i.symbol}|${i.market}` === effectiveKey);
 
-  if (chartable.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="text-sm text-[var(--text-muted)] mb-6">
-        Tambahkan minimal 1 saham (AS/IDX) atau pasangan forex untuk melihat
-        chart.
+        Tambahkan minimal 1 saham (AS/IDX), pasangan forex, atau emas untuk
+        mulai analisis.
       </div>
     );
   }
@@ -49,14 +53,14 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
     <div className="mb-6">
       <div className="flex items-center gap-3 mb-4">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
-          Chart untuk:
+          Analisis untuk:
         </label>
         <select
           value={effectiveKey}
           onChange={(e) => setSelectedKey(e.target.value)}
           className="bg-[var(--bg-card)] border border-[var(--border-card-strong)] rounded-md px-3 py-1.5 text-sm text-[var(--text-primary)]"
         >
-          {chartable.map((i) => (
+          {items.map((i) => (
             <option key={`${i.symbol}|${i.market}`} value={`${i.symbol}|${i.market}`}>
               {i.label} ({MARKET_LABEL[i.market] ?? i.market})
             </option>
@@ -65,17 +69,21 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
       </div>
 
       {selected && (
-        <DrawableChart
+        <TradeSetupPanel
           symbol={selected.symbol}
           interval="1d"
-          klinesUrl="/api/stock-klines"
+          category={categoryFor(selected.market)}
           market={selected.market}
+          marketLabel={MARKET_LABEL[selected.market] ?? selected.market}
         />
       )}
 
       <p className="text-[11px] text-[var(--text-faint)] mt-3">
-        Chart saham pakai data harian (1D) — belum ada Setup Detection/SMC
-        engine seperti di crypto, fitur gambar manual tetap bisa dipakai.
+        Setup Detection &amp; SMC engine sekarang sama persis dengan crypto (ATR,
+        pivot, breakout, entry/SL/TP1/TP2) — cuma sumber datanya beda (Yahoo
+        Finance / Twelve Data, harian). Untuk forex &amp; emas, kriteria
+        &quot;volume meningkat&quot; dilewati (netral) karena sumber datanya
+        tidak menyediakan volume yang reliable.
       </p>
     </div>
   );

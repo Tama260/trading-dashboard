@@ -16,7 +16,7 @@ const STORAGE_KEY = "trading-dashboard-stocks-watchlist";
 const DEFAULT_ITEMS: StockItem[] = [
   { symbol: "AAPL", market: "us", label: "AAPL" },
   { symbol: "TLKM", market: "idx", label: "TLKM" },
-  { symbol: "", market: "gold", label: "Emas (XAU/USD)" },
+  { symbol: "XAUUSD", market: "gold", label: "Emas (XAU/USD)" },
 ];
 
 function loadItems(): StockItem[] {

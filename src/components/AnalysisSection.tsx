@@ -6,8 +6,14 @@ import TradeSetupPanel from "./TradeSetupPanel";
 
 export default function AnalysisSection({
   availableSymbols,
+  marketType,
 }: {
   availableSymbols: string[];
+  // "spot" | "futures" — datang dari toggle Spot/Perpetual di Watchlist.
+  // BUG LAMA: dulu tidak diteruskan sama sekali ke TradeSetupPanel, jadi
+  // panel "Analisis untuk" SELALU pakai data Spot walau toggle-nya di
+  // Perpetual. Sekarang diteruskan supaya keduanya sinkron.
+  marketType: "spot" | "futures";
 }) {
   const [symbol, setSymbol] = useState(availableSymbols[0] ?? "BTCUSDT");
 
@@ -51,7 +57,13 @@ export default function AnalysisSection({
       </section>
 
       <section className="mb-6">
-        <TradeSetupPanel symbol={effectiveSymbol} interval="1h" />
+        <TradeSetupPanel
+          symbol={effectiveSymbol}
+          interval="1h"
+          category="crypto"
+          market={marketType}
+          marketLabel={marketType === "futures" ? "Perpetual" : "Spot"}
+        />
       </section>
     </>
   );

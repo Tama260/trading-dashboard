@@ -134,6 +134,7 @@ export async function fetchYahooKlines(
       high: quote.high[i],
       low: quote.low[i],
       close: quote.close[i],
+      volume: quote.volume?.[i] ?? 0,
     });
   }
 
@@ -146,4 +147,7 @@ export type StockKline = {
   high: number;
   low: number;
   close: number;
+  // Opsional — Yahoo biasanya kasih volume untuk saham, tapi forex/emas
+  // (pair "=X") hampir selalu 0/null karena tidak ada bursa volume terpusat.
+  volume?: number;
 };

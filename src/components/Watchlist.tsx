@@ -40,6 +40,64 @@ function saveWatchlist(symbols: string[]) {
 
 const MY_WATCHLIST_VALUE = "__my_watchlist__";
 
+// Satu section market (Spot ATAU Perpetual) — watchlist grid + "Analisis
+// untuk" + chart, PERSIS 3 bagian yang sama strukturnya di semua market
+// (crypto/saham/forex). Market-nya FIXED per section (bukan toggle),
+// supaya kedua-duanya selalu tampil bersamaan tanpa perlu "switch" yang
+// dulu suka bikin request nyangkut / keliatan error pas transisi.
+function CryptoMarketSection({
+  title,
+  marketType,
+  displayedSymbols,
+  isMyWatchlist,
+  symbols,
+  removeSymbol,
+  addSymbolDirect,
+}: {
+  title: string;
+  marketType: "spot" | "futures";
+  displayedSymbols: string[];
+  isMyWatchlist: boolean;
+  symbols: string[];
+  removeSymbol: (s: string) => void;
+  addSymbolDirect: (s: string) => void;
+}) {
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-3 pb-2 border-b border-[var(--border-card)]">
+        Crypto — {title}
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {displayedSymbols.map((s) => (
+          <LivePrice
+            key={`${s}-${marketType}`}
+            symbol={s.toLowerCase()}
+            market={marketType}
+            onRemove={isMyWatchlist ? () => removeSymbol(s) : undefined}
+            onAdd={
+              !isMyWatchlist && !symbols.includes(s)
+                ? () => addSymbolDirect(s)
+                : undefined
+            }
+          />
+        ))}
+
+        {isMyWatchlist && symbols.length === 0 && (
+          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6 border border-dashed border-[var(--border-card)] rounded-xl">
+            Watchlist kosong. Klik &quot;+ Tambah Koin&quot; untuk mulai.
+          </div>
+        )}
+      </div>
+
+      <AnalysisSection
+        availableSymbols={displayedSymbols}
+        marketType={marketType}
+      />
+    </section>
+  );
+}
+
 export default function Watchlist() {
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [hydrated, setHydrated] = useState(false);
@@ -47,10 +105,10 @@ export default function Watchlist() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addError, setAddError] = useState("");
 
-  // Dropdown: "Watchlist Saya" ATAU salah satu kategori. Ini yang
-  // menentukan apa yang ditampilkan di grid utama di bawah.
+  // Dropdown: "Watchlist Saya" ATAU salah satu kategori. Berlaku untuk
+  // KEDUA section (Spot & Perpetual) sekaligus — daftar koinnya sama,
+  // cuma data harga & analisisnya yang beda per market.
   const [viewMode, setViewMode] = useState(MY_WATCHLIST_VALUE);
-  const [marketType, setMarketType] = useState<"spot" | "futures">("spot");
   const [trendingSymbols, setTrendingSymbols] = useState<string[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [trendingError, setTrendingError] = useState("");
@@ -158,7 +216,7 @@ export default function Watchlist() {
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
-            Watchlist
+            Watchlist Crypto
           </span>
           <select
             value={viewMode}
@@ -172,40 +230,9 @@ export default function Watchlist() {
               </option>
             ))}
           </select>
-          <div
-            className="flex items-center rounded-md border overflow-hidden text-xs"
-            style={{ borderColor: "var(--border-card-strong)" }}
-          >
-            <button
-              onClick={() => setMarketType("spot")}
-              className="px-2.5 py-1.5 transition-colors"
-              style={{
-                backgroundColor:
-                  marketType === "spot" ? "var(--badge-sky-bg)" : "transparent",
-                color:
-                  marketType === "spot"
-                    ? "var(--badge-sky-text)"
-                    : "var(--text-muted)",
-              }}
-            >
-              Spot
-            </button>
-            <button
-              onClick={() => setMarketType("futures")}
-              className="px-2.5 py-1.5 transition-colors"
-              style={{
-                backgroundColor:
-                  marketType === "futures" ? "var(--badge-sky-bg)" : "transparent",
-                color:
-                  marketType === "futures"
-                    ? "var(--badge-sky-text)"
-                    : "var(--text-muted)",
-              }}
-              title="Perpetual futures (USDT-M)"
-            >
-              Perpetual
-            </button>
-          </div>
+          <span className="text-[11px] text-[var(--text-faint)]">
+            Berlaku untuk Spot &amp; Perpetual di bawah
+          </span>
         </div>
         <button
           onClick={() => setShowAddForm((v) => !v)}
@@ -244,40 +271,36 @@ export default function Watchlist() {
         </form>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {!isMyWatchlist && trendingLoading && (
-          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6">
-            Memuat trending {viewMode}...
-          </div>
-        )}
-        {!isMyWatchlist && trendingError && (
-          <div className="col-span-full text-sm text-[var(--badge-red-text)] text-center py-6">
-            {trendingError}
-          </div>
-        )}
+      {!isMyWatchlist && trendingLoading && (
+        <div className="text-sm text-[var(--text-muted)] text-center py-6">
+          Memuat trending {viewMode}...
+        </div>
+      )}
+      {!isMyWatchlist && trendingError && (
+        <div className="text-sm text-[var(--badge-red-text)] text-center py-6">
+          {trendingError}
+        </div>
+      )}
 
-        {displayedSymbols.map((s) => (
-          <LivePrice
-            key={`${s}-${marketType}`}
-            symbol={s.toLowerCase()}
-            market={marketType}
-            onRemove={isMyWatchlist ? () => removeSymbol(s) : undefined}
-            onAdd={
-              !isMyWatchlist && !symbols.includes(s)
-                ? () => addSymbolDirect(s)
-                : undefined
-            }
-          />
-        ))}
+      <CryptoMarketSection
+        title="Spot"
+        marketType="spot"
+        displayedSymbols={displayedSymbols}
+        isMyWatchlist={isMyWatchlist}
+        symbols={symbols}
+        removeSymbol={removeSymbol}
+        addSymbolDirect={addSymbolDirect}
+      />
 
-        {isMyWatchlist && symbols.length === 0 && (
-          <div className="col-span-full text-sm text-[var(--text-muted)] text-center py-6 border border-dashed border-[var(--border-card)] rounded-xl">
-            Watchlist kosong. Klik &quot;+ Tambah Koin&quot; untuk mulai.
-          </div>
-        )}
-      </div>
-
-      <AnalysisSection availableSymbols={displayedSymbols} />
+      <CryptoMarketSection
+        title="Perpetual"
+        marketType="futures"
+        displayedSymbols={displayedSymbols}
+        isMyWatchlist={isMyWatchlist}
+        symbols={symbols}
+        removeSymbol={removeSymbol}
+        addSymbolDirect={addSymbolDirect}
+      />
     </>
   );
 }

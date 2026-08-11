@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DrawableChart, { Annotation } from "./DrawableChart";
 import { formatPrice } from "@/lib/format";
-import { useAnalysisContext } from "@/lib/analysisContext";
+import { useAnalysisContext, AssetCategory } from "@/lib/analysisContext";
 
 type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
@@ -85,9 +85,24 @@ const POLL_INTERVAL_MS = 30000; // level setup tidak perlu se-realtime harga
 export default function TradeSetupPanel({
   symbol,
   interval = "1h",
+  category = "crypto",
+  market = "spot",
+  marketLabel,
 }: {
   symbol: string;
   interval?: string;
+  // Kategori aset menentukan engine mana yang dipakai — "crypto" pakai
+  // /api/setup & /api/structure (Binance), "saham"/"forex" pakai
+  // /api/stock-setup & /api/stock-structure (Yahoo/Twelve Data). Engine
+  // hitungnya (pivot/ATR/breakout/entry/SL/TP) PERSIS SAMA — cuma sumber
+  // klines-nya beda.
+  category?: AssetCategory;
+  // Untuk category "crypto": "spot" | "futures" (Perpetual).
+  // Untuk category "saham"/"forex": "us" | "idx" | "forex" | "gold".
+  market?: string;
+  // Label ramah-manusia buat header panel & context AI, misal "Perpetual",
+  // "Saham IDX", "Forex". Default ke `market` mentah kalau tidak diisi.
+  marketLabel?: string;
 }) {
   const [data, setData] = useState<SetupResult | null>(null);
   const [structureData, setStructureData] = useState<StructureResult | null>(
@@ -95,6 +110,11 @@ export default function TradeSetupPanel({
   );
   const [error, setError] = useState("");
   const { setContext } = useAnalysisContext();
+
+  const setupUrl = category === "crypto" ? "/api/setup" : "/api/stock-setup";
+  const structureUrl =
+    category === "crypto" ? "/api/structure" : "/api/stock-structure";
+  const effectiveMarketLabel = marketLabel ?? market;
 
   // Kontrol per-garis — default: level actionable (entry/SL/TP) tampil,
   // resistance/support & structure/liquidity dimatikan biar chart bersih
@@ -124,12 +144,14 @@ export default function TradeSetupPanel({
     async function load() {
       try {
         const [setupRes, structureRes] = await Promise.all([
-          fetch(`/api/setup?symbol=${symbol}&interval=${interval}`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/structure?symbol=${symbol}&interval=${interval}`, {
-            cache: "no-store",
-          }),
+          fetch(
+            `${setupUrl}?symbol=${symbol}&interval=${interval}&market=${market}`,
+            { cache: "no-store" }
+          ),
+          fetch(
+            `${structureUrl}?symbol=${symbol}&interval=${interval}&market=${market}`,
+            { cache: "no-store" }
+          ),
         ]);
 
         const setupJson = await setupRes.json();
@@ -161,15 +183,16 @@ export default function TradeSetupPanel({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [symbol, interval]);
+  }, [symbol, interval, setupUrl, structureUrl, market]);
 
   // Dorong context analisis terbaru ke provider global, supaya
   // FloatingAIChat (posisinya di luar komponen ini) tetap tahu symbol +
   // setup apa yang sedang ditampilkan ke user.
   useEffect(() => {
     if (!data) return;
-    setContext({
+    setContext(category, {
       symbol,
+      marketLabel: effectiveMarketLabel,
       bias: data.bias,
       confidence: data.confidence,
       entryLow: data.levels.entryLow,
@@ -178,7 +201,19 @@ export default function TradeSetupPanel({
       tp1: data.levels.tp1,
       tp2: data.levels.tp2,
     });
-  }, [data, symbol, setContext]);
+  }, [data, symbol, category, effectiveMarketLabel, setContext]);
+
+  // Efek TERPISAH khusus buat cleanup — sengaja dipisah dari efek di atas.
+  // Kalau digabung jadi satu return function di effect yang sama, cleanup
+  // itu akan jalan setiap kali `data` berubah (tiap 30 detik polling),
+  // bukan cuma pas komponennya BENERAN unmount — jadi context sempat
+  // "kosong" sesaat lalu keisi lagi tiap poll, bikin re-render sia-sia.
+  // Deps di sini cuma `category` + `setContext` (keduanya stabil), jadi
+  // cleanup-nya cuma jalan sekali pas komponen dilepas beneran (misal user
+  // hapus semua item watchlist saham) — bukan tiap data baru masuk.
+  useEffect(() => {
+    return () => setContext(category, undefined);
+  }, [category, setContext]);
 
   const setupAnnotations: Annotation[] = data
     ? [
@@ -352,7 +387,8 @@ export default function TradeSetupPanel({
       <div className="rounded-xl border border-[var(--border-card)] bg-[var(--bg-card)] p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
-            Setup Detection — {symbol} ({interval})
+            Setup Detection — {symbol} ({effectiveMarketLabel}
+            {category === "crypto" ? `, ${interval}` : ""})
           </span>
           {data && (
             <span className="text-xs text-[var(--text-muted)]">
@@ -519,7 +555,13 @@ export default function TradeSetupPanel({
         )}
       </div>
 
-      <DrawableChart symbol={symbol} interval={interval} annotations={annotations} />
+      <DrawableChart
+        symbol={symbol}
+        interval={interval}
+        annotations={annotations}
+        klinesUrl={category === "crypto" ? "/api/klines" : "/api/stock-klines"}
+        market={market}
+      />
     </div>
   );
 }

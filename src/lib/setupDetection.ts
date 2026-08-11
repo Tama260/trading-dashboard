@@ -125,10 +125,19 @@ export function calculateSetup(klines: Kline[]): SetupResult {
   const breakoutDown = lastClose < priorSupport && strongBody;
   const breakout = breakoutUp || breakoutDown;
 
-  // Volume confirmation: volume candle terakhir vs rata-rata 20 candle
+  // Volume confirmation: volume candle terakhir vs rata-rata 20 candle.
+  // Saham/forex/emas (Yahoo/Twelve Data) kadang tidak menyediakan volume
+  // yang reliable (forex & emas nyaris selalu 0). Kalau avgVolume 0, itu
+  // tandanya data volume TIDAK TERSEDIA — bukan berarti "volume rendah".
+  // Jangan hukum confidence cuma karena data source-nya beda; anggap
+  // kriteria ini netral (lolos) supaya crypto vs saham/forex tetap
+  // sebanding secara adil.
   const avgVolume =
-    klines.slice(-21, -1).reduce((s, k) => s + k.volume, 0) / 20;
-  const volumeConfirmed = lastCandle.volume > avgVolume * 1.2;
+    klines.slice(-21, -1).reduce((s, k) => s + (k.volume ?? 0), 0) / 20;
+  const hasVolumeData = avgVolume > 0;
+  const volumeConfirmed = hasVolumeData
+    ? (lastCandle.volume ?? 0) > avgVolume * 1.2
+    : true;
 
   let bias: SetupResult["bias"] = structure;
   if (breakoutUp) bias = "Bullish";
@@ -139,7 +148,12 @@ export function calculateSetup(klines: Kline[]): SetupResult {
   const checklist = [
     { label: "Struktur trend searah bias", passed: structure === bias },
     { label: "Breakout candle impulsif terkonfirmasi", passed: breakout },
-    { label: "Volume meningkat saat breakout", passed: volumeConfirmed },
+    {
+      label: hasVolumeData
+        ? "Volume meningkat saat breakout"
+        : "Volume meningkat saat breakout (data volume tidak tersedia)",
+      passed: volumeConfirmed,
+    },
     { label: "Risk/Reward memadai (≥ 1.5R)", passed: true }, // dihitung ulang di bawah
   ];
 

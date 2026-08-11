@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAnalysisContext } from "@/lib/analysisContext";
+import {
+  useAnalysisContext,
+  AnalysisContext as LiveAnalysis,
+  AssetCategory,
+} from "@/lib/analysisContext";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -139,26 +143,58 @@ function resolveActiveConfig(settings: Settings): {
   return { provider: preset.provider, baseUrl: preset.baseUrl, model: preset.model };
 }
 
-function buildSystemPrompt(context?: ReturnType<typeof useAnalysisContext>["context"]): string {
+const CATEGORY_LABEL: Record<AssetCategory, string> = {
+  crypto: "Crypto",
+  saham: "Saham",
+  forex: "Forex",
+  emas: "Emas",
+};
+
+function formatContextLine(category: AssetCategory, ctx: LiveAnalysis): string {
+  return (
+    `- [${CATEGORY_LABEL[category]} — ${ctx.marketLabel}] symbol ${ctx.symbol}: bias ${ctx.bias} ` +
+    `(confidence ${ctx.confidence}%), entry zone ${ctx.entryLow}-${ctx.entryHigh}, ` +
+    `SL ${ctx.stopLoss}, TP1 ${ctx.tp1}, TP2 ${ctx.tp2}`
+  );
+}
+
+// Dulu context cuma 1 slot global ("lagi lihat symbol apa"), jadi kalau
+// user buka watchlist Perpetual, Saham, DAN Forex bersamaan (mereka semua
+// tampil di satu halaman yang sama, bukan tab terpisah), yang satu bakal
+// menimpa yang lain — AI cuma "ingat" yang terakhir fetch selesai duluan.
+// Sekarang tiap kategori aset punya slot sendiri, jadi AI bisa lihat
+// SEMUANYA sekaligus dan tetap jawab benar mau user tanya soal yang mana.
+function buildSystemPrompt(
+  contexts: Partial<Record<AssetCategory, LiveAnalysis>>
+): string {
   const base =
     "Kamu adalah asisten analisis trading untuk dashboard rule-based (bukan machine learning). " +
-    "Jawab singkat, jelas, dalam Bahasa Indonesia. Kamu BOLEH dan DIHARAPKAN menjawab pertanyaan " +
-    "soal coin/saham/aset APAPUN pakai pengetahuan umum kamu sendiri, tidak terbatas cuma pada " +
-    "konteks yang diberikan di bawah — konteks itu cuma info TAMBAHAN soal apa yang SEDANG " +
-    "ditampilkan di layar user, bukan pembatas topik obrolan. WAJIB selalu ingatkan bahwa ini bukan " +
-    "nasihat keuangan dan bukan jaminan profit — dorong user untuk tetap DYOR (Do Your Own Research) " +
-    "dan pakai manajemen risiko. JANGAN pernah menjanjikan hasil pasti.";
+    "Jawab singkat, jelas, dalam Bahasa Indonesia. Fokus jawabanmu ke ANGKA konkret (bias, entry " +
+    "zone, stop loss, take profit) dari data rule-based di bawah, BUKAN cuma penjelasan teori " +
+    "umum — kalau ada datanya, selalu sebutkan levelnya. Kamu BOLEH dan DIHARAPKAN menjawab " +
+    "pertanyaan soal coin/saham/aset APAPUN pakai pengetahuan umum kamu sendiri, tidak terbatas " +
+    "cuma pada konteks yang diberikan di bawah — konteks itu info TAMBAHAN soal apa yang SEDANG " +
+    "ditampilkan di dashboard user, bukan pembatas topik obrolan. WAJIB selalu ingatkan bahwa ini " +
+    "bukan nasihat keuangan dan bukan jaminan profit — dorong user untuk tetap DYOR (Do Your Own " +
+    "Research) dan pakai manajemen risiko. JANGAN pernah menjanjikan hasil pasti.";
 
-  if (!context) return base;
+  const entries = (Object.entries(contexts) as [AssetCategory, LiveAnalysis | undefined][])
+    .filter((entry): entry is [AssetCategory, LiveAnalysis] => Boolean(entry[1]));
+
+  if (entries.length === 0) return base;
+
+  const lines = entries.map(([category, ctx]) => formatContextLine(category, ctx));
 
   return `${base}
 
-Data rule-based yang tersedia saat ini (dari dashboard, bisa jadi yang lagi tampil di layar ATAU
-yang baru diambil live karena user menyebut symbol ini di chat): symbol ${context.symbol}, bias
-${context.bias} (confidence ${context.confidence}%), entry zone ${context.entryLow}-${context.entryHigh},
-SL ${context.stopLoss}, TP1 ${context.tp1}, TP2 ${context.tp2}. Kalau user tanya soal angka-angka
-symbol ini, jawab pakai data ini. Kalau user tanya soal coin/topik LAIN, tetap jawab pakai
-pengetahuan umum kamu — JANGAN bilang "saya tidak punya info" hanya karena tidak ada di sini.`;
+Data rule-based yang SEDANG tampil di dashboard user sekarang (bisa lebih dari satu kategori
+sekaligus, karena crypto/saham/forex tampil di halaman yang sama):
+${lines.join("\n")}
+
+Kalau user tanya soal angka-angka salah satu symbol di atas, jawab pakai data ini persis — jangan
+dibulatkan atau diperkirakan ulang. Kalau user tanya soal coin/saham/topik LAIN yang tidak ada di
+daftar ini, tetap jawab pakai pengetahuan umum kamu — JANGAN bilang "saya tidak punya info" hanya
+karena tidak ada di daftar di atas.`;
 }
 
 // Kata umum yang sering ke-deteksi salah sebagai "symbol" — perlu di-skip
@@ -188,23 +224,15 @@ function guessSymbolFromText(text: string): string | null {
   return null;
 }
 
-type LiveContext = {
-  symbol: string;
-  bias: string;
-  confidence: number;
-  entryLow: number;
-  entryHigh: number;
-  stopLoss: number;
-  tp1: number;
-  tp2: number;
-};
-
 // Ambil data setup detection LIVE untuk symbol yang disebut user di chat —
 // dipanggil sebelum kirim ke AI, supaya AI tidak "buta" kalau ditanya soal
-// coin lain di luar yang lagi tampil di dropdown "Analisis Untuk"
+// coin lain di luar yang lagi tampil di dropdown "Analisis Untuk". Heuristik
+// ini cuma untuk crypto (format XXXUSDT) — saham/forex tidak punya pola
+// nama yang bisa ditebak seaman itu dari teks bebas, jadi untuk itu AI
+// tetap mengandalkan context yang sedang tampil di layar.
 async function fetchLiveContextForSymbol(
   symbol: string
-): Promise<LiveContext | null> {
+): Promise<LiveAnalysis | null> {
   try {
     const res = await fetch(`/api/setup?symbol=${symbol}&interval=1h`, {
       cache: "no-store",
@@ -214,6 +242,7 @@ async function fetchLiveContextForSymbol(
 
     return {
       symbol,
+      marketLabel: "Spot/Perpetual (disebut di chat)",
       bias: json.bias,
       confidence: json.confidence,
       entryLow: json.levels.entryLow,
@@ -228,7 +257,11 @@ async function fetchLiveContextForSymbol(
 }
 
 export default function FloatingAIChat() {
-  const { context } = useAnalysisContext();
+  const { contexts } = useAnalysisContext();
+  const cryptoContext = contexts.crypto;
+  const activeSymbols = (Object.values(contexts) as (LiveAnalysis | undefined)[])
+    .filter((c): c is LiveAnalysis => Boolean(c))
+    .map((c) => c.symbol);
   const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
@@ -277,14 +310,16 @@ export default function FloatingAIChat() {
     setError("");
 
     try {
-      // Kalau user menyebut symbol lain (misal "HYPEUSDT") yang beda dari
-      // yang lagi ditampilkan di dashboard, coba ambil data live-nya dulu —
-      // supaya AI jawab pakai data asli, bukan cuma pengetahuan umum
-      let effectiveContext = context;
+      // Kalau user menyebut symbol crypto lain (misal "HYPEUSDT") yang
+      // beda dari yang lagi ditampilkan di dashboard, coba ambil data
+      // live-nya dulu — supaya AI jawab pakai data asli, bukan cuma
+      // pengetahuan umum. Ini menambah/menimpa slot "crypto" saja; slot
+      // saham/forex/emas yang sedang tampil di layar tetap ikut dikirim.
+      let effectiveContexts = contexts;
       const mentionedSymbol = guessSymbolFromText(text);
-      if (mentionedSymbol && mentionedSymbol !== context?.symbol) {
+      if (mentionedSymbol && mentionedSymbol !== cryptoContext?.symbol) {
         const liveData = await fetchLiveContextForSymbol(mentionedSymbol);
-        if (liveData) effectiveContext = liveData;
+        if (liveData) effectiveContexts = { ...contexts, crypto: liveData };
       }
 
       const config = resolveActiveConfig(settings);
@@ -297,7 +332,7 @@ export default function FloatingAIChat() {
           model: config.model,
           baseUrl: config.baseUrl,
           messages: [
-            { role: "system", content: buildSystemPrompt(effectiveContext) },
+            { role: "system", content: buildSystemPrompt(effectiveContexts) },
             ...newMessages,
           ],
         }),
@@ -335,7 +370,7 @@ export default function FloatingAIChat() {
           >
             <div>
               <div className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                AI Chat {context ? `— ${context.symbol}` : ""}
+                AI Chat {activeSymbols.length > 0 ? `— ${activeSymbols.join(", ")}` : ""}
               </div>
               <div className="text-xs" style={{ color: "var(--text-faint)" }}>
                 BYOK — key tersimpan di browser kamu
@@ -505,8 +540,8 @@ export default function FloatingAIChat() {
           <div ref={scrollRef} className="overflow-y-auto flex-1 p-4 space-y-3 min-h-[240px]">
             {messages.length === 0 && (
               <div className="text-base text-center py-8" style={{ color: "var(--text-muted)" }}>
-                {context
-                  ? `Lagi lihat analisis ${context.symbol}. Tanya soal itu, atau coin/topik lain juga boleh.`
+                {activeSymbols.length > 0
+                  ? `Lagi lihat analisis ${activeSymbols.join(", ")}. Tanya soal itu, atau coin/saham/topik lain juga boleh.`
                   : "Mulai obrolan — tanya apa saja soal trading."}
               </div>
             )}

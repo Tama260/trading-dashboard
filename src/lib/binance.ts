@@ -21,6 +21,26 @@ function getBaseUrls(market: Market): string[] {
   return market === "futures" ? FUTURES_BASE_URLS : SPOT_BASE_URLS;
 }
 
+// Timeout keras per percobaan endpoint. Tanpa ini, kalau satu domain
+// (paling sering fapi.binance.com dari jaringan tertentu) koneksinya
+// "digantung" oleh ISP/firewall (bukan ditolak tegas, tapi paketnya
+// didiemin), fetch() browser/Node bakal nunggu sampai puluhan detik
+// sebelum akhirnya gagal sendiri — bikin fallback ke endpoint/provider
+// berikutnya (spot fallback, lalu Bitget) ikut telat nyala, dan halaman
+// kerasa "banyak error" padahal sebenarnya cuma nunggu satu percobaan
+// yang emang gak bakal pernah berhasil.
+const FETCH_TIMEOUT_MS = 5000;
+
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { cache: "no-store", signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchWithFallback(
   baseUrls: string[],
   path: string
@@ -28,11 +48,12 @@ async function fetchWithFallback(
   let lastStatus = 0;
   for (const base of baseUrls) {
     try {
-      const res = await fetch(`${base}${path}`, { cache: "no-store" });
+      const res = await fetchWithTimeout(`${base}${path}`);
       if (res.ok) return await res.json();
       lastStatus = res.status;
     } catch {
-      // gagal konek ke base URL ini, lanjut coba yang berikutnya
+      // Gagal konek ATAU timeout (5 detik) ke base URL ini — lanjut coba
+      // yang berikutnya secepatnya, jangan nunggu lebih lama
     }
   }
 
@@ -63,10 +84,10 @@ async function fetchTicker24hrFromBitget(
 ): Promise<Ticker24hr> {
   const url =
     market === "futures"
-      ? `https://api.bitget.com/api/v2/mix/market/ticker?symbol=${symbol.toUpperCase()}&productType=USDT-FUTURES`
+      ? `https://api.bitget.com/api/v2/mix/market/ticker?symbol=${symbol.toUpperCase()}&productType=usdt-futures`
       : `https://api.bitget.com/api/v2/spot/market/tickers?symbol=${symbol.toUpperCase()}`;
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url);
 
   if (!res.ok) {
     throw new Error(`Bitget merespons status ${res.status}`);
@@ -115,10 +136,17 @@ export async function fetchTicker24hr(
     // Semua endpoint Binance gagal — coba Bitget sebelum menyerah total
     try {
       return await fetchTicker24hrFromBitget(symbol, market);
-    } catch {
-      // Bitget juga gagal — lempar error asli dari Binance, itu lebih
-      // informatif (pesan "symbol tidak ditemukan" dari fetchWithFallback)
-      throw binanceError;
+    } catch (bitgetError) {
+      // Bitget JUGA gagal — gabungkan pesan keduanya, supaya kelihatan
+      // jelas apakah ini masalah symbol (400) atau konektivitas jaringan
+      // (status 0 / fetch gagal total, biasanya karena domain-nya
+      // diblokir ISP/jaringan — umum terjadi untuk fapi.binance.com di
+      // beberapa jaringan Indonesia, khususnya untuk data Futures).
+      const binanceMsg =
+        binanceError instanceof Error ? binanceError.message : "gagal";
+      const bitgetMsg =
+        bitgetError instanceof Error ? bitgetError.message : "gagal";
+      throw new Error(`Binance: ${binanceMsg} | Bitget: ${bitgetMsg}`);
     }
   }
 }
@@ -156,10 +184,10 @@ async function fetchKlinesFromBitget(
 
   const url =
     market === "futures"
-      ? `https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&productType=USDT-FUTURES&limit=${limit}`
+      ? `https://api.bitget.com/api/v2/mix/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&productType=usdt-futures&limit=${limit}`
       : `https://api.bitget.com/api/v2/spot/market/candles?symbol=${symbol.toUpperCase()}&granularity=${granularity}&limit=${limit}`;
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url);
 
   if (!res.ok) {
     throw new Error(`Bitget merespons status ${res.status}`);
