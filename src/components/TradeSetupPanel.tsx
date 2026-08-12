@@ -80,7 +80,23 @@ type LevelKey =
   | "fvg"
   | "orderBlock";
 
-const POLL_INTERVAL_MS = 30000; // level setup tidak perlu se-realtime harga
+// Refresh Setup Detection makin cepat makin rendah timeframe-nya — dropdown
+// 1m percuma kalau datanya baru update tiap 30 detik. Batas bawah 8 detik
+// dipilih supaya tetap sopan ke rate limit Binance/Bitget (bukan literally
+// tiap detik), tapi cukup responsif buat scalping.
+function pollIntervalFor(interval: string): number {
+  if (interval === "1m") return 8000;
+  if (interval === "5m") return 12000;
+  if (interval === "15m") return 20000;
+  return 30000; // 1h ke atas — level setup tidak perlu se-realtime harga
+}
+
+const STYLE_LABEL: Record<string, string> = {
+  scalping: "Scalping",
+  day: "Day Trading",
+  swing: "Swing Trading",
+  position: "Position Trading",
+};
 
 export default function TradeSetupPanel({
   symbol,
@@ -88,6 +104,7 @@ export default function TradeSetupPanel({
   category = "crypto",
   market = "spot",
   marketLabel,
+  tradingStyle = "day",
 }: {
   symbol: string;
   interval?: string;
@@ -103,6 +120,11 @@ export default function TradeSetupPanel({
   // Label ramah-manusia buat header panel & context AI, misal "Perpetual",
   // "Saham IDX", "Forex". Default ke `market` mentah kalau tidak diisi.
   marketLabel?: string;
+  // Gaya trading menentukan lebar entry/SL dan target R:R (lihat
+  // RISK_PROFILES di setupDetection.ts) — bukan menentukan timeframe.
+  // Timeframe tetap dikontrol lewat prop `interval` secara terpisah,
+  // supaya user tetap bebas override manual kalau mau.
+  tradingStyle?: "scalping" | "day" | "swing" | "position";
 }) {
   const [data, setData] = useState<SetupResult | null>(null);
   const [structureData, setStructureData] = useState<StructureResult | null>(
@@ -145,7 +167,7 @@ export default function TradeSetupPanel({
       try {
         const [setupRes, structureRes] = await Promise.all([
           fetch(
-            `${setupUrl}?symbol=${symbol}&interval=${interval}&market=${market}`,
+            `${setupUrl}?symbol=${symbol}&interval=${interval}&market=${market}&style=${tradingStyle}`,
             { cache: "no-store" }
           ),
           fetch(
@@ -174,7 +196,7 @@ export default function TradeSetupPanel({
           setError(err instanceof Error ? err.message : "Terjadi kesalahan");
         }
       } finally {
-        if (!cancelled) timer = setTimeout(load, POLL_INTERVAL_MS);
+        if (!cancelled) timer = setTimeout(load, pollIntervalFor(interval));
       }
     }
 
@@ -183,7 +205,7 @@ export default function TradeSetupPanel({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [symbol, interval, setupUrl, structureUrl, market]);
+  }, [symbol, interval, setupUrl, structureUrl, market, tradingStyle]);
 
   // Dorong context analisis terbaru ke provider global, supaya
   // FloatingAIChat (posisinya di luar komponen ini) tetap tahu symbol +
@@ -388,7 +410,8 @@ export default function TradeSetupPanel({
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
             Setup Detection — {symbol} ({effectiveMarketLabel}
-            {category === "crypto" ? `, ${interval}` : ""})
+            {category === "crypto" ? `, ${interval}` : ""} ·{" "}
+            {STYLE_LABEL[tradingStyle]})
           </span>
           {data && (
             <span className="text-xs text-[var(--text-muted)]">

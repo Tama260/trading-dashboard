@@ -36,11 +36,37 @@ export default function Home() {
         </section>
 
         <footer
-          className="mt-8 text-xs pt-4"
+          className="mt-8 text-xs pt-4 flex flex-col gap-2"
           style={{ color: "var(--text-faint)", borderTop: "1px solid var(--border-card)" }}
         >
-          Educational project oleh Daffa. Bukan nasihat keuangan. Semua
-          sinyal bersifat rule-based. DYOR (Do Your Own Research).
+          <p>
+            Educational project oleh Daffa. Bukan nasihat keuangan. Semua
+            sinyal bersifat rule-based. DYOR (Do Your Own Research).
+          </p>
+          <p>
+            Made by{" "}
+            <span style={{ color: "var(--text-tertiary)" }}>
+              Daffa Novendra Aditama
+            </span>{" "}
+            —{" "}
+            <a
+              href="https://s.id/Portofolio-Daffa_Novendra_Aditama"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-80"
+            >
+              Portfolio
+            </a>{" "}
+            ·{" "}
+            <a
+              href="https://github.com/Tama260"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-80"
+            >
+              GitHub
+            </a>
+          </p>
         </footer>
       </div>
 

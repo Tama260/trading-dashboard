@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchYahooKlines, StockKline } from "@/lib/idxStocks";
 import { fetchStockTimeSeries } from "@/lib/twelveData";
 import { Kline } from "@/lib/binance";
-import { calculateSetup } from "@/lib/setupDetection";
+import { calculateSetup, TradingStyle, RISK_PROFILES } from "@/lib/setupDetection";
+
+function parseStyle(raw: string | null): TradingStyle {
+  return raw && raw in RISK_PROFILES ? (raw as TradingStyle) : "day";
+}
 
 // Reuse persis engine yang sama dengan crypto (/api/setup) — cuma beda
 // sumber klines-nya. Bias, entry zone, SL, TP1/TP2 dihitung dengan rumus
@@ -27,6 +31,7 @@ export async function GET(request: NextRequest) {
     | "idx"
     | "forex"
     | "gold";
+  const style = parseStyle(request.nextUrl.searchParams.get("style"));
 
   if (!symbol) {
     return NextResponse.json(
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
       klines = await fetchStockTimeSeries(symbol, "1day", 200);
     }
 
-    const setup = calculateSetup(toEngineKlines(klines));
+    const setup = calculateSetup(toEngineKlines(klines), style);
     return NextResponse.json(setup);
   } catch (err) {
     return NextResponse.json(

@@ -16,7 +16,7 @@ type TickerData = {
   low: string;
 };
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 1500;
 
 // Komponen ini TIDAK lagi konek langsung ke Binance dari browser.
 // Ia bertanya ke "/api/prices" (server milik kita sendiri di Next.js),

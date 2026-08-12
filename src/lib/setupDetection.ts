@@ -62,6 +62,29 @@ export function detectStructure(pivots: Pivot[]): Structure {
   return "Neutral";
 }
 
+export type TradingStyle = "scalping" | "day" | "swing" | "position";
+
+// Preset per gaya trading — SEMUA dalam kelipatan ATR, jadi otomatis
+// menyesuaikan skala volatilitas symbol apa pun (BTC vs saham receh vs
+// forex major, dst) tanpa perlu angka absolut per aset.
+//
+// entryBuffer & stopBuffer: makin lebar makin "toleran" ke noise — cocok
+// buat holding period lebih panjang yang bisa nahan fluktuasi lebih besar.
+// tp1R/tp2R: target profit dalam kelipatan risk (R) — gaya holding lebih
+// panjang biasanya incar R:R lebih besar karena entry-nya lebih jarang.
+export const RISK_PROFILES: Record<
+  TradingStyle,
+  { entryBuffer: number; stopBuffer: number; tp1R: number; tp2R: number }
+> = {
+  scalping: { entryBuffer: 0.15, stopBuffer: 0.5, tp1R: 1.2, tp2R: 2 },
+  // "day" adalah nilai default lama (sebelum fitur profile ini ada) —
+  // dipertahankan persis supaya perilaku existing tidak berubah kalau
+  // caller tidak eksplisit pilih profile
+  day: { entryBuffer: 0.3, stopBuffer: 0.8, tp1R: 1.5, tp2R: 3 },
+  swing: { entryBuffer: 0.5, stopBuffer: 1.5, tp1R: 2, tp2R: 4 },
+  position: { entryBuffer: 0.8, stopBuffer: 2.5, tp1R: 3, tp2R: 6 },
+};
+
 export type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
   confidence: number;
@@ -78,10 +101,15 @@ export type SetupResult = {
   };
 };
 
-export function calculateSetup(klines: Kline[]): SetupResult {
+export function calculateSetup(
+  klines: Kline[],
+  style: TradingStyle = "day"
+): SetupResult {
   if (klines.length < 30) {
     throw new Error("Data candlestick tidak cukup untuk analisis setup");
   }
+
+  const profile = RISK_PROFILES[style] ?? RISK_PROFILES.day;
 
   const pivots = findPivots(klines);
   const structure = detectStructure(pivots);
@@ -154,7 +182,7 @@ export function calculateSetup(klines: Kline[]): SetupResult {
         : "Volume meningkat saat breakout (data volume tidak tersedia)",
       passed: volumeConfirmed,
     },
-    { label: "Risk/Reward memadai (≥ 1.5R)", passed: true }, // dihitung ulang di bawah
+    { label: `Risk/Reward memadai (≥ ${profile.tp1R}R)`, passed: true }, // dihitung ulang di bawah
   ];
 
   let confidence = 30;
@@ -172,11 +200,11 @@ export function calculateSetup(klines: Kline[]): SetupResult {
     ? support
     : resistance;
 
-  const entryBuffer = atrValue * 0.3;
+  const entryBuffer = atrValue * profile.entryBuffer;
   const entryLow = pivotForEntry - entryBuffer;
   const entryHigh = pivotForEntry + entryBuffer;
 
-  const stopBuffer = atrValue * 0.8;
+  const stopBuffer = atrValue * profile.stopBuffer;
   const stopLoss =
     bias === "Bearish"
       ? pivotForEntry + stopBuffer
@@ -188,8 +216,8 @@ export function calculateSetup(klines: Kline[]): SetupResult {
   if (rrOk) confidence += 10;
 
   const direction = bias === "Bearish" ? -1 : 1;
-  const tp1 = pivotForEntry + direction * riskDistance * 1.5;
-  const tp2 = pivotForEntry + direction * riskDistance * 3;
+  const tp1 = pivotForEntry + direction * riskDistance * profile.tp1R;
+  const tp2 = pivotForEntry + direction * riskDistance * profile.tp2R;
 
   return {
     bias,

@@ -17,6 +17,18 @@ const MARKET_LABEL: Record<string, string> = {
   gold: "Emas",
 };
 
+type TradingStyle = "swing" | "position";
+
+// Saham/forex/emas di sini semuanya candle HARIAN (Yahoo/Twelve Data) — jadi
+// cuma Swing & Position Trading yang masuk akal sebagai pilihan gaya
+// (Scalping/Day Trading butuh candle menit-jam, belum didukung buat
+// kategori ini). Kalau nanti ada sumber data intraday buat saham/forex,
+// baru daftar ini bisa diperluas.
+const TRADING_STYLES: { value: TradingStyle; label: string }[] = [
+  { value: "swing", label: "Swing Trading" },
+  { value: "position", label: "Position Trading" },
+];
+
 // Kategori context AI per jenis market — saham AS & IDX sama-sama masuk
 // "saham", forex & emas dipisah karena keduanya dihitung lewat pair-style
 // Yahoo (XXX=X) dan sering dianalisis bareng-bareng dalam satu sesi.
@@ -30,6 +42,7 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
   const [selectedKey, setSelectedKey] = useState(
     items[0] ? `${items[0].symbol}|${items[0].market}` : ""
   );
+  const [tradingStyle, setTradingStyle] = useState<TradingStyle>("swing");
 
   const effectiveKey =
     items.some((i) => `${i.symbol}|${i.market}` === selectedKey)
@@ -51,6 +64,27 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
 
   return (
     <div className="mb-6">
+      <div className="flex items-center gap-3 mb-3">
+        <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+          Gaya Trading:
+        </label>
+        <div className="flex rounded-md overflow-hidden border border-[var(--border-card-strong)]">
+          {TRADING_STYLES.map((s) => (
+            <button
+              key={s.value}
+              onClick={() => setTradingStyle(s.value)}
+              className={`px-3 py-1.5 text-sm ${
+                tradingStyle === s.value
+                  ? "bg-[var(--badge-sky-bg)] text-[var(--badge-sky-text)]"
+                  : "bg-[var(--bg-card)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 mb-4">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
           Analisis untuk:
@@ -75,6 +109,7 @@ export default function StockAnalysis({ items }: { items: StockItem[] }) {
           category={categoryFor(selected.market)}
           market={selected.market}
           marketLabel={MARKET_LABEL[selected.market] ?? selected.market}
+          tradingStyle={tradingStyle}
         />
       )}
 
