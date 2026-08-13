@@ -17,6 +17,11 @@ export type AnalysisContext = {
   stopLoss: number;
   tp1: number;
   tp2: number;
+  // "Trending" | "Ranging" — penting buat AI ngerti KENAPA entry-nya
+  // berbentuk begitu (fade tepi range vs ikut breakout/trend)
+  regime: string;
+  trendStrength: number;
+  range: { high: number; low: number } | null;
 };
 
 type ContextMap = Partial<Record<AssetCategory, AnalysisContext>>;

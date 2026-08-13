@@ -151,9 +151,13 @@ const CATEGORY_LABEL: Record<AssetCategory, string> = {
 };
 
 function formatContextLine(category: AssetCategory, ctx: LiveAnalysis): string {
+  const regimeInfo =
+    ctx.regime === "Ranging" && ctx.range
+      ? `regime Ranging (range ${ctx.range.low}-${ctx.range.high}, entry-nya FADE ke tepi range bukan ikut trend)`
+      : `regime Trending (ADX ${ctx.trendStrength})`;
   return (
-    `- [${CATEGORY_LABEL[category]} — ${ctx.marketLabel}] symbol ${ctx.symbol}: bias ${ctx.bias} ` +
-    `(confidence ${ctx.confidence}%), entry zone ${ctx.entryLow}-${ctx.entryHigh}, ` +
+    `- [${CATEGORY_LABEL[category]} — ${ctx.marketLabel}] symbol ${ctx.symbol}: bias ${ctx.bias}, ` +
+    `${regimeInfo}, confidence ${ctx.confidence}%, entry zone ${ctx.entryLow}-${ctx.entryHigh}, ` +
     `SL ${ctx.stopLoss}, TP1 ${ctx.tp1}, TP2 ${ctx.tp2}`
   );
 }
@@ -250,6 +254,9 @@ async function fetchLiveContextForSymbol(
       stopLoss: json.levels.stopLoss,
       tp1: json.levels.tp1,
       tp2: json.levels.tp2,
+      regime: json.regime,
+      trendStrength: json.trendStrength,
+      range: json.range,
     };
   } catch {
     return null;

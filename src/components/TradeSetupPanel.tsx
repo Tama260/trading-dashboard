@@ -4,22 +4,7 @@ import { useEffect, useState } from "react";
 import DrawableChart, { Annotation } from "./DrawableChart";
 import { formatPrice } from "@/lib/format";
 import { useAnalysisContext, AssetCategory } from "@/lib/analysisContext";
-
-type SetupResult = {
-  bias: "Bullish" | "Bearish" | "Neutral";
-  confidence: number;
-  breakout: boolean;
-  checklist: { label: string; passed: boolean }[];
-  levels: {
-    resistance: number;
-    support: number;
-    entryLow: number;
-    entryHigh: number;
-    stopLoss: number;
-    tp1: number;
-    tp2: number;
-  };
-};
+import type { SetupResult } from "@/lib/setupDetection";
 
 type StructureLabel = {
   time: number;
@@ -78,7 +63,8 @@ type LevelKey =
   | "liquidity"
   | "sweep"
   | "fvg"
-  | "orderBlock";
+  | "orderBlock"
+  | "range";
 
 // Refresh Setup Detection makin cepat makin rendah timeframe-nya — dropdown
 // 1m percuma kalau datanya baru update tiap 30 detik. Batas bawah 8 detik
@@ -153,6 +139,7 @@ export default function TradeSetupPanel({
     sweep: false,
     fvg: false,
     orderBlock: false,
+    range: true,
   });
 
   function toggle(key: LevelKey) {
@@ -222,6 +209,9 @@ export default function TradeSetupPanel({
       stopLoss: data.levels.stopLoss,
       tp1: data.levels.tp1,
       tp2: data.levels.tp2,
+      regime: data.regime,
+      trendStrength: data.trendStrength,
+      range: data.range,
     });
   }, [data, symbol, category, effectiveMarketLabel, setContext]);
 
@@ -256,6 +246,22 @@ export default function TradeSetupPanel({
                 price: data.levels.support,
                 label: "Support",
                 color: "#f97316",
+              },
+            ]
+          : []),
+        ...(visible.range && data.range
+          ? [
+              {
+                type: "hline" as const,
+                price: data.range.high,
+                label: "Range High",
+                color: "#a855f7",
+              },
+              {
+                type: "hline" as const,
+                price: data.range.low,
+                label: "Range Low",
+                color: "#a855f7",
               },
             ]
           : []),
@@ -414,12 +420,62 @@ export default function TradeSetupPanel({
             {STYLE_LABEL[tradingStyle]})
           </span>
           {data && (
-            <span className="text-xs text-[var(--text-muted)]">
-              Confidence:{" "}
-              <span className="text-[var(--text-secondary)]">{data.confidence}%</span>
+            <span className="text-xs text-[var(--text-muted)] flex items-center gap-3">
+              <span>
+                Regime:{" "}
+                <span
+                  style={{
+                    color: data.regime === "Ranging" ? "#a855f7" : "#38bdf8",
+                  }}
+                >
+                  {data.regime === "Ranging" ? "Ranging" : "Trending"}
+                </span>
+              </span>
+              <span>
+                Trend Strength:{" "}
+                <span className="text-[var(--text-secondary)]">
+                  {data.trendStrength} ADX
+                </span>
+              </span>
+              <span>
+                Confidence:{" "}
+                <span className="text-[var(--text-secondary)]">{data.confidence}%</span>
+              </span>
             </span>
           )}
         </div>
+
+        {data?.regime === "Ranging" && data.range && (
+          <div
+            className="mb-3 px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
+            style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7" }}
+          >
+            📊 Range Trading — harga terkurung antara {formatPrice(data.range.low)} (bawah)
+            dan {formatPrice(data.range.high)} (atas). Setup di atas fade ke tepi range, bukan
+            ikutin trend.
+          </div>
+        )}
+
+        {data?.breakoutSetup && (
+          <div
+            className="mb-3 px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
+            style={{ background: "rgba(249,115,22,0.15)", color: "#f97316" }}
+          >
+            🔥 Breakout Setup — breakout dari kompresi volatilitas
+            ({data.volatilityCompression.compressionPercent}% menyempit).
+            Sinyal lebih meyakinkan dari breakout biasa.
+          </div>
+        )}
+        {!data?.breakoutSetup && data?.volatilityCompression.compressed && (
+          <div
+            className="mb-3 px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
+            style={{ background: "rgba(56,189,248,0.12)", color: "#38bdf8" }}
+          >
+            ⚡ Volatilitas menyempit {data.volatilityCompression.compressionPercent}%
+            — belum breakout, tapi ini yang biasanya diintip breakout trader
+            sebelum entry.
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           <LevelChip
@@ -489,6 +545,14 @@ export default function TradeSetupPanel({
             active={visible.orderBlock}
             onClick={() => toggle("orderBlock")}
           />
+          {data?.range && (
+            <LevelChip
+              label="Range"
+              color="#a855f7"
+              active={visible.range}
+              onClick={() => toggle("range")}
+            />
+          )}
         </div>
 
         {error && <div className="text-sm text-[var(--badge-red-text)]">{error}</div>}

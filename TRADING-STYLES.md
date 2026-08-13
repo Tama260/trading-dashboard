@@ -39,14 +39,20 @@ kemungkinan fixed) dibikin terima parameter sesuai profile ini.
 **Sekaligus mencakup:** Day Trading, Swing Trading, Position Trading —
 tanpa nulis satu baris logic deteksi baru.
 
-### Lapis 2 — Trend Trading (refinement kecil)
+### Lapis 2 — Trend Trading ✅ SUDAH DIKERJAKAN (refinement kecil)
 
 - Tambah "trend strength score" independen dari arah (mirip ADX) di
   `indicators.ts`
 - Filter entry: cuma munculin sinyal continuation (pullback ke struktur)
   kalau trend strength-nya tinggi — bukan sinyal reversal
 
-### Lapis 3 — Breakout Trading (refinement kecil, reuse BOS yang sudah ada)
+**Implementasi:** `adx()` di `indicators.ts` (Wilder's smoothing standar).
+ADX ≥25 dianggap trend kuat (dapat bonus confidence +5), <20 dianggap
+lemah — jadi salah satu syarat Range Detection di bawah. Muncul di UI
+sebagai badge "XX ADX" di header panel, dan checklist item "Trend cukup
+kuat (ADX XX)".
+
+### Lapis 3 — Breakout Trading ✅ SUDAH DIKERJAKAN (refinement kecil, reuse BOS yang sudah ada)
 
 - Tambah "Volatility Compression" — deteksi ATR/range yang menyempit
   beberapa candle terakhir (ciri khas sebelum breakout)
@@ -54,13 +60,32 @@ tanpa nulis satu baris logic deteksi baru.
   `smc.ts`) → tandai sebagai "Breakout Setup" dengan confidence lebih
   tinggi
 
-### Lapis 4 — Range Trading (paling banyak kerjaannya, genuinely baru)
+**Implementasi:** `detectVolatilityCompression()` di `indicators.ts`
+(bandingin ATR rata-rata separuh terakhir window 20-candle vs separuh
+sebelumnya, ambang 25% penyusutan). Diukur dari data SEBELUM candle
+breakout supaya gak bias oleh gerakan breakout itu sendiri. Muncul di UI
+sebagai badge oranye "🔥 Breakout Setup" (kalau breakout+compression
+bareng) atau badge biru "⚡ Volatilitas menyempit" (compression aja, belum
+breakout — sinyal "siap-siap" buat breakout trader yang mau nunggu momen
+masuk, bukan ngejar).
+
+### Lapis 4 — Range Trading ✅ SUDAH DIKERJAKAN
 
 - Deteksi kondisi ranging beneran: ambil swing high/low terakhir, cek
   apakah harga mantul di antara keduanya berkali-kali tanpa breakout
 - Kalau kondisi range terkonfirmasi: balik logic entry-nya — bukan ikutin
   bias, tapi FADE ke tepi range (entry dekat range low buat long, dekat
   range high buat short), TP ke sisi seberang, SL di luar batas range
+
+**Implementasi:** `detectRange()` di `setupDetection.ts`. Syarat ranging:
+harga mantul ≥2x di tiap tepi (dalam window 30 candle), lebar range masuk
+akal dibanding ATR (1.5x-8x, biar gak ketuker sama trend besar atau noise
+harian), DAN ADX < 25 (konfirmasi independen). Kalau breakout baru saja
+kejadian, range TIDAK dihitung (state-nya udah berubah jadi Trending).
+Entry/SL/TP pakai logic terpisah total dari mode Trending: TP1 = titik
+tengah range, TP2 = mendekati tepi seberang. Muncul di UI sebagai badge
+ungu "📊 Range Trading" + boundary range digambar di chart (toggle
+terpisah dari Resistance/Support biasa).
 
 ## Urutan pengerjaan yang saya sarankan
 
@@ -74,6 +99,9 @@ tanpa nulis satu baris logic deteksi baru.
 
 ---
 
-*Silakan pilih mau mulai dari mana — saya rekomendasikan urutan di atas,
-tapi kalau ada gaya tertentu yang paling penting buat kamu duluan, bisa
-kita loncat ke situ.*
+*Semua 4 lapis di atas sudah selesai dikerjakan. Engine sekarang paham:
+gaya trading (via Trading Style Profile), kekuatan trend (ADX), kompresi
+volatilitas (buat breakout), dan kondisi ranging beneran dengan entry logic
+yang berbeda total (fade tepi range). Ide pengembangan lanjutan ada di
+`SCALPING-FEATURES.md` (Position Sizing Calculator, Funding Rate, Trade
+Journal, dst) dan `ROADMAP.md` (Backtesting, unit test, dst).*

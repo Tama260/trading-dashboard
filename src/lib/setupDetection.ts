@@ -1,5 +1,5 @@
 import { Kline } from "./binance";
-import { atr } from "./indicators";
+import { atr, detectVolatilityCompression, adx } from "./indicators";
 
 export type Pivot = {
   index: number;
@@ -85,10 +85,69 @@ export const RISK_PROFILES: Record<
   position: { entryBuffer: 0.8, stopBuffer: 2.5, tp1R: 3, tp2R: 6 },
 };
 
+export type RangeInfo = {
+  ranging: boolean;
+  high: number;
+  low: number;
+  touchesHigh: number;
+  touchesLow: number;
+};
+
+// Deteksi kondisi ranging BENERAN — bukan cuma "gak jelas arahnya" (itu
+// yang selama ini diwakili "Neutral" di detectRegime), tapi punya BATAS
+// yang jelas: ambil high/low tertinggi-terendah dalam window, hitung
+// berapa kali harga "mantul" di dekat masing-masing tepi (minimal 2x tiap
+// sisi supaya bukan kebetulan), dan pastikan lebar range-nya masuk akal
+// dibanding ATR (gak kegedean — itu tandanya trend besar yang kebetulan
+// cuma punya 1-2 titik ekstrem, bukan konsolidasi beneran; gak kekecilan —
+// itu cuma noise harian biasa).
+function detectRange(
+  historicalKlines: Kline[],
+  currentClose: number,
+  atrValue: number,
+  lookback = 30
+): RangeInfo {
+  const recent = historicalKlines.slice(-lookback);
+  if (recent.length < 10 || atrValue <= 0) {
+    return { ranging: false, high: 0, low: 0, touchesHigh: 0, touchesLow: 0 };
+  }
+
+  const high = Math.max(...recent.map((k) => k.high));
+  const low = Math.min(...recent.map((k) => k.low));
+  const width = high - low;
+
+  const edgeTolerance = atrValue * 0.4;
+  const touchesHigh = recent.filter((k) => high - k.high <= edgeTolerance).length;
+  const touchesLow = recent.filter((k) => k.low - low <= edgeTolerance).length;
+
+  const withinRange =
+    currentClose <= high + edgeTolerance && currentClose >= low - edgeTolerance;
+
+  const ranging =
+    withinRange &&
+    touchesHigh >= 2 &&
+    touchesLow >= 2 &&
+    width >= atrValue * 1.5 &&
+    width <= atrValue * 8;
+
+  return { ranging, high, low, touchesHigh, touchesLow };
+}
+
 export type SetupResult = {
   bias: "Bullish" | "Bearish" | "Neutral";
   confidence: number;
   breakout: boolean;
+  // true kalau breakout ini didahului fase kompresi volatilitas — sinyal
+  // breakout yang lebih meyakinkan dibanding breakout biasa (bukan cuma
+  // gerakan liar sesaat), relevan buat gaya Breakout Trading
+  breakoutSetup: boolean;
+  volatilityCompression: { compressed: boolean; compressionPercent: number };
+  // "Trending" = entry logic ikutin arah (continuation/breakout, seperti
+  // biasa). "Ranging" = entry logic KEBALIK — fade ke tepi range, bukan
+  // ikutin bias. Relevan buat Range Trading.
+  regime: "Trending" | "Ranging";
+  trendStrength: number; // ADX, 0-100, independen dari arah
+  range: { high: number; low: number } | null; // null kalau regime Trending
   checklist: { label: string; passed: boolean }[];
   levels: {
     resistance: number;
@@ -153,6 +212,29 @@ export function calculateSetup(
   const breakoutDown = lastClose < priorSupport && strongBody;
   const breakout = breakoutUp || breakoutDown;
 
+  // Kompresi diukur dari data SEBELUM candle breakout (exclude candle
+  // terakhir) — kalau candle breakout ikut dihitung, ATR-nya pasti sudah
+  // melebar duluan karena breakout itu sendiri, jadi kompresi "sebelum"
+  // gerakan gak akan pernah kedeteksi. Ini yang bikin sinyal ini berguna:
+  // "apakah pasar lagi ngumpulin tenaga SEBELUM meledak", bukan cuma
+  // "candle ini gedhe".
+  const volatilityCompression = detectVolatilityCompression(priorKlines);
+  const breakoutSetup = breakout && volatilityCompression.compressed;
+
+  // ADX rendah = konfirmasi independen bahwa market gak lagi trending kuat
+  // — dipakai sebagai salah satu syarat Range Detection di bawah, bukan
+  // cuma modal "kebetulan mantul 2x"
+  const trendStrength = adx(klines, 14);
+
+  // Range TIDAK dihitung kalau breakout beneran baru kejadian — breakout
+  // artinya range-nya (kalau ada) baru saja ditembus, jadi state-nya udah
+  // berubah jadi Trending, bukan Ranging lagi
+  const rangeInfo = breakout
+    ? { ranging: false, high: 0, low: 0, touchesHigh: 0, touchesLow: 0 }
+    : detectRange(priorKlines, lastClose, atrValue);
+  const isRanging = rangeInfo.ranging && trendStrength < 25;
+  const regime: SetupResult["regime"] = isRanging ? "Ranging" : "Trending";
+
   // Volume confirmation: volume candle terakhir vs rata-rata 20 candle.
   // Saham/forex/emas (Yahoo/Twelve Data) kadang tidak menyediakan volume
   // yang reliable (forex & emas nyaris selalu 0). Kalau avgVolume 0, itu
@@ -171,28 +253,95 @@ export function calculateSetup(
   if (breakoutUp) bias = "Bullish";
   if (breakoutDown) bias = "Bearish";
 
+  // Range mode: bias TIDAK ikut struktur/breakout, tapi ikut posisi harga
+  // relatif ke tepi range — ini yang bikin range trading beda fundamental
+  // dari trend trading. Deket tepi bawah → cari LONG (mantul naik). Deket
+  // tepi atas → cari SHORT (mantul turun). Di tengah-tengah → belum ada
+  // setup yang actionable, tunggu harga mendekat ke salah satu tepi dulu.
+  const edgeZone = atrValue * Math.max(profile.entryBuffer, 0.3) * 2;
+  let nearRangeEdge: "low" | "high" | null = null;
+  if (isRanging) {
+    const distToHigh = Math.abs(rangeInfo.high - lastClose);
+    const distToLow = Math.abs(lastClose - rangeInfo.low);
+    if (distToLow <= edgeZone && distToLow <= distToHigh) {
+      bias = "Bullish";
+      nearRangeEdge = "low";
+    } else if (distToHigh <= edgeZone) {
+      bias = "Bearish";
+      nearRangeEdge = "high";
+    } else {
+      bias = "Neutral";
+      nearRangeEdge = null;
+    }
+  }
+
   // Rule-based confidence scoring, komponen dan bobotnya transparan
   // (mudah dijelaskan, bukan black-box)
-  const checklist = [
-    { label: "Struktur trend searah bias", passed: structure === bias },
-    { label: "Breakout candle impulsif terkonfirmasi", passed: breakout },
-    {
-      label: hasVolumeData
-        ? "Volume meningkat saat breakout"
-        : "Volume meningkat saat breakout (data volume tidak tersedia)",
-      passed: volumeConfirmed,
-    },
-    { label: `Risk/Reward memadai (≥ ${profile.tp1R}R)`, passed: true }, // dihitung ulang di bawah
-  ];
+  const checklist = isRanging
+    ? [
+        {
+          label: `Range terkonfirmasi (${rangeInfo.touchesLow}x mantul bawah, ${rangeInfo.touchesHigh}x mantul atas)`,
+          passed: true,
+        },
+        {
+          label: "Trend lemah (ADX < 25) — konsisten dengan kondisi ranging",
+          passed: trendStrength < 25,
+        },
+        {
+          label: "Harga di dekat tepi range (setup mean-reversion)",
+          passed: nearRangeEdge !== null,
+        },
+        { label: `Risk/Reward memadai (≥ ${profile.tp1R}R)`, passed: true }, // dihitung ulang di bawah
+      ]
+    : [
+        { label: "Struktur trend searah bias", passed: structure === bias },
+        { label: "Breakout candle impulsif terkonfirmasi", passed: breakout },
+        {
+          label: hasVolumeData
+            ? "Volume meningkat saat breakout"
+            : "Volume meningkat saat breakout (data volume tidak tersedia)",
+          passed: volumeConfirmed,
+        },
+        { label: `Risk/Reward memadai (≥ ${profile.tp1R}R)`, passed: true }, // dihitung ulang di bawah
+        {
+          label: volatilityCompression.compressed
+            ? `Breakout didahului kompresi volatilitas (menyempit ${volatilityCompression.compressionPercent}%)`
+            : "Breakout didahului kompresi volatilitas",
+          passed: breakoutSetup,
+        },
+        {
+          label: `Trend cukup kuat (ADX ${trendStrength} — ${trendStrength >= 25 ? "kuat" : trendStrength >= 20 ? "sedang" : "lemah"})`,
+          passed: trendStrength >= 25,
+        },
+      ];
+
+  // Catatan: item Risk/Reward ada di index 3 di KEDUA varian checklist di
+  // atas (sengaja disusun sama), jadi checklist[3] di bawah selalu tepat
+  // sasaran gak peduli lagi Ranging atau Trending
 
   let confidence = 30;
-  if (structure === bias) confidence += 20;
-  if (breakout) confidence += 25;
-  if (volumeConfirmed) confidence += 15;
+  if (isRanging) {
+    if (rangeInfo.touchesLow >= 2 && rangeInfo.touchesHigh >= 2) confidence += 20;
+    if (trendStrength < 25) confidence += 15;
+    if (nearRangeEdge !== null) confidence += 20;
+  } else {
+    if (structure === bias) confidence += 20;
+    if (breakout) confidence += 25;
+    if (volumeConfirmed) confidence += 15;
+    if (breakoutSetup) confidence += 10; // bonus: breakout dari kompresi lebih meyakinkan
+    if (trendStrength >= 25) confidence += 5; // bonus kecil: trend memang kuat, bukan cuma structure kebetulan searah
+  }
 
   // Entry zone: area retest di sekitar level yang baru ditembus (atau level
-  // support/resistance terdekat kalau belum breakout)
-  const pivotForEntry = breakoutUp
+  // support/resistance terdekat kalau belum breakout) — KECUALI mode
+  // Ranging, itu logic-nya beda total (lihat di bawah)
+  const pivotForEntry = isRanging
+    ? nearRangeEdge === "low"
+      ? rangeInfo.low
+      : nearRangeEdge === "high"
+      ? rangeInfo.high
+      : lastClose
+    : breakoutUp
     ? priorResistance
     : breakoutDown
     ? priorSupport
@@ -205,10 +354,17 @@ export function calculateSetup(
   const entryHigh = pivotForEntry + entryBuffer;
 
   const stopBuffer = atrValue * profile.stopBuffer;
-  const stopLoss =
-    bias === "Bearish"
+  const stopLoss = isRanging
+    ? nearRangeEdge === "low"
+      ? rangeInfo.low - stopBuffer // SL di luar batas range, bukan di kelipatan ATR biasa
+      : nearRangeEdge === "high"
+      ? rangeInfo.high + stopBuffer
+      : bias === "Bearish"
       ? pivotForEntry + stopBuffer
-      : pivotForEntry - stopBuffer;
+      : pivotForEntry - stopBuffer
+    : bias === "Bearish"
+    ? pivotForEntry + stopBuffer
+    : pivotForEntry - stopBuffer;
 
   const riskDistance = Math.abs(pivotForEntry - stopLoss);
   const rrOk = riskDistance > 0;
@@ -216,13 +372,35 @@ export function calculateSetup(
   if (rrOk) confidence += 10;
 
   const direction = bias === "Bearish" ? -1 : 1;
-  const tp1 = pivotForEntry + direction * riskDistance * profile.tp1R;
-  const tp2 = pivotForEntry + direction * riskDistance * profile.tp2R;
+  let tp1: number;
+  let tp2: number;
+
+  if (isRanging && nearRangeEdge !== null) {
+    // Range trading TP-nya bukan kelipatan R seperti trend trading — target
+    // paling wajar adalah sisi SEBERANG range, karena itu batas mean-
+    // reversion-nya. TP1 di titik tengah (target konservatif, ambil profit
+    // lebih cepat), TP2 mendekati tepi seberang (sedikit di dalam biar
+    // realistis, gak ngarep pas presisi ke titik ekstrem)
+    const rangeMid = (rangeInfo.high + rangeInfo.low) / 2;
+    const oppositeEdge = nearRangeEdge === "low" ? rangeInfo.high : rangeInfo.low;
+    const edgeBuffer = atrValue * 0.3;
+    tp1 = rangeMid;
+    tp2 =
+      nearRangeEdge === "low" ? oppositeEdge - edgeBuffer : oppositeEdge + edgeBuffer;
+  } else {
+    tp1 = pivotForEntry + direction * riskDistance * profile.tp1R;
+    tp2 = pivotForEntry + direction * riskDistance * profile.tp2R;
+  }
 
   return {
     bias,
     confidence: Math.min(confidence, 95),
     breakout,
+    breakoutSetup,
+    volatilityCompression,
+    regime,
+    trendStrength,
+    range: isRanging ? { high: rangeInfo.high, low: rangeInfo.low } : null,
     checklist,
     levels: {
       resistance,
