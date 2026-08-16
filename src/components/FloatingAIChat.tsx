@@ -6,142 +6,16 @@ import {
   AnalysisContext as LiveAnalysis,
   AssetCategory,
 } from "@/lib/analysisContext";
+import {
+  PRESETS,
+  AISettings as Settings,
+  DEFAULT_AI_SETTINGS as DEFAULT_SETTINGS,
+  loadAISettings as loadSettings,
+  saveAISettings as saveSettings,
+  resolveActiveAIConfig as resolveActiveConfig,
+} from "@/lib/aiSettings";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
-
-// Preset provider — user tinggal PILIH, tidak perlu tahu/ketik Base URL
-// atau nama model secara manual. Cuma "Custom" yang butuh isi manual,
-// buat provider lain yang belum ada di daftar ini.
-type Preset = {
-  id: string;
-  label: string;
-  provider: "anthropic" | "openai";
-  baseUrl: string;
-  model: string;
-  free: boolean;
-  signupUrl: string;
-};
-
-const PRESETS: Preset[] = [
-  {
-    id: "groq",
-    label: "Groq",
-    provider: "openai",
-    baseUrl: "https://api.groq.com/openai/v1",
-    model: "llama-3.3-70b-versatile",
-    free: true,
-    signupUrl: "console.groq.com",
-  },
-  {
-    id: "gemini",
-    label: "Google Gemini",
-    provider: "openai",
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    model: "gemini-2.0-flash",
-    free: true,
-    signupUrl: "aistudio.google.com",
-  },
-  {
-    id: "cerebras",
-    label: "Cerebras",
-    provider: "openai",
-    baseUrl: "https://api.cerebras.ai/v1",
-    model: "llama-3.3-70b",
-    free: true,
-    signupUrl: "cloud.cerebras.ai",
-  },
-  {
-    id: "openrouter",
-    label: "OpenRouter (model gratis terbatas)",
-    provider: "openai",
-    baseUrl: "https://openrouter.ai/api/v1",
-    model: "meta-llama/llama-3.3-70b-instruct:free",
-    free: true,
-    signupUrl: "openrouter.ai",
-  },
-  {
-    id: "anthropic",
-    label: "Anthropic (Claude) — berbayar",
-    provider: "anthropic",
-    baseUrl: "",
-    model: "claude-3-5-haiku-20241022",
-    free: false,
-    signupUrl: "console.anthropic.com",
-  },
-  {
-    id: "openai",
-    label: "OpenAI — berbayar",
-    provider: "openai",
-    baseUrl: "",
-    model: "gpt-4o-mini",
-    free: false,
-    signupUrl: "platform.openai.com",
-  },
-  {
-    id: "custom",
-    label: "Custom (isi manual)",
-    provider: "openai",
-    baseUrl: "",
-    model: "",
-    free: false,
-    signupUrl: "",
-  },
-];
-
-type Settings = {
-  presetId: string;
-  apiKey: string;
-  // Cuma dipakai kalau presetId === "custom"
-  customProvider: "anthropic" | "openai";
-  customBaseUrl: string;
-  customModel: string;
-};
-
-const STORAGE_KEY = "trading-dashboard-ai-settings";
-
-const DEFAULT_SETTINGS: Settings = {
-  presetId: "groq",
-  apiKey: "",
-  customProvider: "openai",
-  customBaseUrl: "",
-  customModel: "",
-};
-
-function loadSettings(): Settings {
-  if (typeof window === "undefined") return DEFAULT_SETTINGS;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function saveSettings(settings: Settings) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // localStorage penuh/diblokir — tidak fatal
-  }
-}
-
-// Gabungkan preset terpilih jadi 1 objek {provider, baseUrl, model} yang
-// siap dikirim ke server — baik dari preset siap pakai maupun custom manual
-function resolveActiveConfig(settings: Settings): {
-  provider: "anthropic" | "openai";
-  baseUrl: string;
-  model: string;
-} {
-  if (settings.presetId === "custom") {
-    return {
-      provider: settings.customProvider,
-      baseUrl: settings.customBaseUrl,
-      model: settings.customModel,
-    };
-  }
-  const preset = PRESETS.find((p) => p.id === settings.presetId) ?? PRESETS[0];
-  return { provider: preset.provider, baseUrl: preset.baseUrl, model: preset.model };
-}
 
 const CATEGORY_LABEL: Record<AssetCategory, string> = {
   crypto: "Crypto",

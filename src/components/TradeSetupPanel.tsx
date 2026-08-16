@@ -5,6 +5,10 @@ import DrawableChart, { Annotation } from "./DrawableChart";
 import { formatPrice } from "@/lib/format";
 import { useAnalysisContext, AssetCategory } from "@/lib/analysisContext";
 import type { SetupResult } from "@/lib/setupDetection";
+import AISetupCommentary from "./AISetupCommentary";
+import ConfidenceBreakdown from "./ConfidenceBreakdown";
+import BacktestPanel from "./BacktestPanel";
+import PositionSizeCalculator from "./PositionSizeCalculator";
 
 type StructureLabel = {
   time: number;
@@ -584,7 +588,20 @@ export default function TradeSetupPanel({
               ))}
             </ul>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4">
+            <ConfidenceBreakdown
+              breakdown={data.confidenceBreakdown}
+              confidence={data.confidence}
+            />
+
+            <AISetupCommentary
+              data={data}
+              symbol={symbol}
+              marketLabel={effectiveMarketLabel}
+              interval={interval}
+              tradingStyle={STYLE_LABEL[tradingStyle]}
+            />
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4 mt-4">
               <LevelBox
                 label="Entry Zone"
                 value={`${formatPrice(data.levels.entryLow)} - ${formatPrice(
@@ -608,6 +625,30 @@ export default function TradeSetupPanel({
                 color="text-[var(--badge-green-text)]"
               />
             </div>
+
+            <button
+              onClick={() => {
+                window.dispatchEvent(
+                  new CustomEvent("journal:prefill", {
+                    detail: {
+                      symbol,
+                      side: data.bias === "Bearish" ? "short" : "long",
+                      entryPrice: (data.levels.entryLow + data.levels.entryHigh) / 2,
+                      stopLoss: data.levels.stopLoss,
+                      takeProfit: data.levels.tp1,
+                      notes: `${STYLE_LABEL[tradingStyle]} · ${data.regime === "Ranging" ? "Range fade" : `ADX ${data.trendStrength}`} · confidence ${data.confidence}%`,
+                    },
+                  })
+                );
+              }}
+              className="text-xs px-3 py-1.5 rounded-md mb-4 border transition-colors"
+              style={{
+                borderColor: "var(--border-card-strong)",
+                color: "var(--text-tertiary)",
+              }}
+            >
+              📓 Log Trade Ini ke Journal
+            </button>
 
             {structureData && (
               <div className="flex flex-wrap gap-4 text-xs text-[var(--text-muted)] border-t border-[var(--border-card)] pt-3">
@@ -648,6 +689,22 @@ export default function TradeSetupPanel({
         annotations={annotations}
         klinesUrl={category === "crypto" ? "/api/klines" : "/api/stock-klines"}
         market={market}
+      />
+
+      {data && (
+        <PositionSizeCalculator
+          entryLow={data.levels.entryLow}
+          entryHigh={data.levels.entryHigh}
+          stopLoss={data.levels.stopLoss}
+        />
+      )}
+
+      <BacktestPanel
+        symbol={symbol}
+        category={category}
+        market={market}
+        interval={interval}
+        tradingStyle={tradingStyle}
       />
     </div>
   );

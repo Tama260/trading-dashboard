@@ -5,6 +5,8 @@ import PositionTracker from "@/components/PositionTracker";
 import FloatingNews from "@/components/FloatingNews";
 import ThemeToggle from "@/components/ThemeToggle";
 import FloatingAIChat from "@/components/FloatingAIChat";
+import MarketScanner from "@/components/MarketScanner";
+import CommandPalette from "@/components/CommandPalette";
 
 export default function Home() {
   return (
@@ -23,9 +25,17 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <span
+              className="hidden sm:inline text-[11px] px-2 py-1 rounded-md"
+              style={{ color: "var(--text-faint)", border: "1px solid var(--border-card)" }}
+            >
+              Tekan <kbd className="font-mono">⌘K</kbd> buat cari cepat
+            </span>
             <ThemeToggle />
           </div>
         </header>
+
+        <MarketScanner />
 
         <Watchlist />
         <StockWatchlist />
@@ -72,6 +82,7 @@ export default function Home() {
 
       <FloatingNews />
       <FloatingAIChat />
+      <CommandPalette />
     </main>
   );
 }

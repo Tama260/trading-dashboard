@@ -148,6 +148,11 @@ export type SetupResult = {
   regime: "Trending" | "Ranging";
   trendStrength: number; // ADX, 0-100, independen dari arah
   range: { high: number; low: number } | null; // null kalau regime Trending
+  // Rincian poin yang nyusun angka confidence — diambil LANGSUNG dari
+  // logic penjumlahannya (bukan ditebak ulang di UI), supaya selalu akurat
+  // walau formula confidence berubah di masa depan. `passed:false` berarti
+  // kriteria itu gak kena poin (bukan berarti minus).
+  confidenceBreakdown: { label: string; points: number; passed: boolean }[];
   checklist: { label: string; passed: boolean }[];
   levels: {
     resistance: number;
@@ -320,16 +325,67 @@ export function calculateSetup(
   // sasaran gak peduli lagi Ranging atau Trending
 
   let confidence = 30;
+  const confidenceBreakdown: SetupResult["confidenceBreakdown"] = [
+    { label: "Skor dasar", points: 30, passed: true },
+  ];
+
   if (isRanging) {
-    if (rangeInfo.touchesLow >= 2 && rangeInfo.touchesHigh >= 2) confidence += 20;
-    if (trendStrength < 25) confidence += 15;
-    if (nearRangeEdge !== null) confidence += 20;
+    const rangeConfirmed = rangeInfo.touchesLow >= 2 && rangeInfo.touchesHigh >= 2;
+    if (rangeConfirmed) confidence += 20;
+    confidenceBreakdown.push({
+      label: "Range terkonfirmasi (mantul ≥2x tiap sisi)",
+      points: 20,
+      passed: rangeConfirmed,
+    });
+
+    const weakTrend = trendStrength < 25;
+    if (weakTrend) confidence += 15;
+    confidenceBreakdown.push({
+      label: "Trend lemah (ADX < 25)",
+      points: 15,
+      passed: weakTrend,
+    });
+
+    const nearEdge = nearRangeEdge !== null;
+    if (nearEdge) confidence += 20;
+    confidenceBreakdown.push({
+      label: "Harga di dekat tepi range",
+      points: 20,
+      passed: nearEdge,
+    });
   } else {
-    if (structure === bias) confidence += 20;
+    const structureMatch = structure === bias;
+    if (structureMatch) confidence += 20;
+    confidenceBreakdown.push({
+      label: "Struktur trend searah bias",
+      points: 20,
+      passed: structureMatch,
+    });
+
     if (breakout) confidence += 25;
+    confidenceBreakdown.push({ label: "Breakout terkonfirmasi", points: 25, passed: breakout });
+
     if (volumeConfirmed) confidence += 15;
+    confidenceBreakdown.push({
+      label: "Volume mendukung",
+      points: 15,
+      passed: volumeConfirmed,
+    });
+
     if (breakoutSetup) confidence += 10; // bonus: breakout dari kompresi lebih meyakinkan
-    if (trendStrength >= 25) confidence += 5; // bonus kecil: trend memang kuat, bukan cuma structure kebetulan searah
+    confidenceBreakdown.push({
+      label: "Breakout dari kompresi volatilitas",
+      points: 10,
+      passed: breakoutSetup,
+    });
+
+    const strongTrend = trendStrength >= 25;
+    if (strongTrend) confidence += 5; // bonus kecil: trend memang kuat, bukan cuma structure kebetulan searah
+    confidenceBreakdown.push({
+      label: "Trend cukup kuat (ADX ≥ 25)",
+      points: 5,
+      passed: strongTrend,
+    });
   }
 
   // Entry zone: area retest di sekitar level yang baru ditembus (atau level
@@ -370,6 +426,11 @@ export function calculateSetup(
   const rrOk = riskDistance > 0;
   checklist[3].passed = rrOk;
   if (rrOk) confidence += 10;
+  confidenceBreakdown.push({
+    label: "Risk/Reward valid (SL bukan di titik entry)",
+    points: 10,
+    passed: rrOk,
+  });
 
   const direction = bias === "Bearish" ? -1 : 1;
   let tp1: number;
@@ -401,6 +462,7 @@ export function calculateSetup(
     regime,
     trendStrength,
     range: isRanging ? { high: rangeInfo.high, low: rangeInfo.low } : null,
+    confidenceBreakdown,
     checklist,
     levels: {
       resistance,
