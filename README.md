@@ -9,7 +9,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=flat&logo=vercel)](https://vercel.com)
 
-**[🔴 Live Demo](https://trading-dashboard-by-dna-.vercel.app)** · **[📖 Documentation](./docs)** · **[🐛 Report an Issue](https://github.com/Tama260/trading-dashboard/issues)**
+**[🔴 Live Demo](https://trading-dashboard-by-dna.vercel.app/)** · **[📖 Documentation](./docs)** · **[🐛 Report an Issue](https://github.com/Tama260/trading-dashboard/issues)**
 
 </div>
 
